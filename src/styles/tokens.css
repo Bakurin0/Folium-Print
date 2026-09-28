@@ -1,0 +1,55 @@
+:root {
+  /* Surface */
+  --surface-app: #f8fafc;
+  --surface-card: #ffffff;
+  --surface-subtle: #f1f5f9;
+  --surface-canvas: #e2e8f0;
+
+  /* Foreground */
+  --foreground-primary: #0f172a;
+  --foreground-secondary: #475569;
+  --foreground-muted: #94a3b8;
+  --foreground-inverse: #ffffff;
+
+  /* Border */
+  --border-subtle: #e2e8f0;
+  --border-default: #cbd5e1;
+  --border-strong: #94a3b8;
+
+  /* Primary */
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-active: #1e40af;
+  --color-focus-ring: #3b82f6;
+
+  /* Feedback */
+  --feedback-success: #059669;
+  --feedback-warning: #f59e0b;
+  --feedback-error: #e11d48;
+}
+
+[data-theme='dark'],
+.dark {
+  --surface-app: #020617;
+  --surface-card: #0f172a;
+  --surface-subtle: #1e293b;
+  --surface-canvas: #090d16;
+
+  --foreground-primary: #f8fafc;
+  --foreground-secondary: #94a3b8;
+  --foreground-muted: #64748b;
+  --foreground-inverse: #0f172a;
+
+  --border-subtle: #1e293b;
+  --border-default: #334155;
+  --border-strong: #475569;
+
+  --color-primary: #3b82f6;
+  --color-primary-hover: #60a5fa;
+  --color-primary-active: #2563eb;
+  --color-focus-ring: #60a5fa;
+
+  --feedback-success: #10b981;
+  --feedback-warning: #f59e0b;
+  --feedback-error: #f43f5e;
+}
