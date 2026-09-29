@@ -1,55 +1,75 @@
 :root {
-  /* Surface */
-  --surface-app: #f8fafc;
-  --surface-card: #ffffff;
-  --surface-subtle: #f1f5f9;
-  --surface-canvas: #e2e8f0;
+  /* ==========================================================================
+     1. Minimalist Editorial Palette (5 Spot Colors + Muted Pastels)
+     ========================================================================== */
+  /* Saturated Spot Accents */
+  --amber-gold: #ffbe0b;
+  --blaze-orange: #fb5607;
+  --neon-pink: #ff006e;
+  --blue-violet: #8338ec;
+  --azure-blue: #3a86ff;
 
-  /* Foreground */
-  --foreground-primary: #0f172a;
-  --foreground-secondary: #475569;
-  --foreground-muted: #94a3b8;
+  --amber-gold-rgb: 255 190 11;
+  --blaze-orange-rgb: 251 86 7;
+  --neon-pink-rgb: 255 0 110;
+  --blue-violet-rgb: 131 56 236;
+  --azure-blue-rgb: 58 134 255;
+
+  /* Muted Washed Pastels (Protocol Utilitarian Minimalist Tags) */
+  --amber-gold-pastel-bg: #fbf3db;
+  --amber-gold-pastel-text: #956400;
+  --amber-gold-pastel-border: #f1e3b8;
+
+  --blaze-orange-pastel-bg: #ffedd5;
+  --blaze-orange-pastel-text: #9a3412;
+  --blaze-orange-pastel-border: #fed7aa;
+
+  --neon-pink-pastel-bg: #fdebec;
+  --neon-pink-pastel-text: #9f2f2d;
+  --neon-pink-pastel-border: #f8d0d3;
+
+  --blue-violet-pastel-bg: #f3e8ff;
+  --blue-violet-pastel-text: #6b21a8;
+  --blue-violet-pastel-border: #e9d5ff;
+
+  --azure-blue-pastel-bg: #e1f3fe;
+  --azure-blue-pastel-text: #1f6c9f;
+  --azure-blue-pastel-border: #bae6fd;
+
+  /* ==========================================================================
+     2. Utilitarian Workspace Monochrome Surfaces & Borders
+     ========================================================================== */
+  --surface-app: #f7f6f3;
+  --surface-card: #ffffff;
+  --surface-subtle: #f1f0ec;
+  --surface-canvas: #edece8;
+
+  /* Charcoal / Off-black (Never absolute #000000 on body text) */
+  --foreground-primary: #111111;
+  --foreground-secondary: #555552;
+  --foreground-muted: #787774;
   --foreground-inverse: #ffffff;
 
-  /* Border */
-  --border-subtle: #e2e8f0;
-  --border-default: #cbd5e1;
-  --border-strong: #94a3b8;
+  /* Structural 1px Rule (#EAEAEA) */
+  --border-subtle: #f0efea;
+  --border-default: #eaeaea;
+  --border-strong: #d4d4d0;
 
-  /* Primary */
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
-  --color-primary-active: #1e40af;
-  --color-focus-ring: #3b82f6;
+  /* Primary Action: Crisp Charcoal Button with Active States */
+  --color-primary: #111111;
+  --color-primary-hover: #27272a;
+  --color-primary-active: #000000;
+  --color-focus-ring: #111111;
 
-  /* Feedback */
-  --feedback-success: #059669;
-  --feedback-warning: #f59e0b;
-  --feedback-error: #e11d48;
-}
+  /* Semantic Feedback Mappings */
+  --feedback-success: #15803d;
+  --feedback-warning: var(--blaze-orange);
+  --feedback-caution: var(--amber-gold);
+  --feedback-error: var(--neon-pink);
 
-[data-theme='dark'],
-.dark {
-  --surface-app: #020617;
-  --surface-card: #0f172a;
-  --surface-subtle: #1e293b;
-  --surface-canvas: #090d16;
-
-  --foreground-primary: #f8fafc;
-  --foreground-secondary: #94a3b8;
-  --foreground-muted: #64748b;
-  --foreground-inverse: #0f172a;
-
-  --border-subtle: #1e293b;
-  --border-default: #334155;
-  --border-strong: #475569;
-
-  --color-primary: #3b82f6;
-  --color-primary-hover: #60a5fa;
-  --color-primary-active: #2563eb;
-  --color-focus-ring: #60a5fa;
-
-  --feedback-success: #10b981;
-  --feedback-warning: #f59e0b;
-  --feedback-error: #f43f5e;
+  /* Component Tokens */
+  --btn-primary-bg: #111111;
+  --btn-primary-text: #ffffff;
+  --card-border: 1px solid var(--border-default);
+  --card-radius: 8px;
 }

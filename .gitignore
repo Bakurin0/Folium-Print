@@ -1,0 +1,22 @@
+# Node & Dependencies
+node_modules/
+.pnpm-store/
+
+# Production Build
+dist/
+dist-ssr/
+*.local
+
+# Tauri & Rust
+src-tauri/target/
+
+# Logs & Cache
+*.log
+.DS_Store
+.turbo
+.cache
+
+# IDE & Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
