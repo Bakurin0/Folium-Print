@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import gsap from 'gsap';
 import { getDefaultFormData } from './templates';
 import { Template, TemplateFormData, CustomTemplateDefinition } from './types/template';
 import { UnifiedToolbar } from './components/UnifiedToolbar';
@@ -8,7 +9,7 @@ import { InspectorPanel, InspectorTab } from './components/InspectorPanel';
 import { ShortcutsModal } from './components/ShortcutsModal';
 import { VisualTemplateEditorModal } from './components/VisualTemplateEditorModal';
 import { HomeDashboard } from './components/HomeDashboard';
-import { CinematicIntroSplash } from './components/CinematicIntroSplash';
+import { PrinterBootAnimation } from './components/PrinterBootAnimation';
 import { executePixelPerfectPrint } from './utils/printService';
 import { generateCropMarksSvg } from './utils/cropMarksGenerator';
 import { sanitizeSvg } from './utils/sanitizeSvg';
@@ -77,8 +78,9 @@ export const App: React.FC = () => {
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState<boolean>(false);
   const [isEditorOpen, setIsEditorOpen] = useState<boolean>(false);
   const [editingTemplate, setEditingTemplate] = useState<CustomTemplateDefinition | null>(null);
-  // Estado da introdução cinemática 3D
-  const [isIntroActive, setIsIntroActive] = useState<boolean>(true);
+  // Estado de Boot Mecânico da Impressora Térmica (disparado ao abrir modelo na Home)
+  const [isPrinterBooting, setIsPrinterBooting] = useState<boolean>(false);
+  const [bootingTemplate, setBootingTemplate] = useState<Template | null>(null);
 
   // 6.5 Estado da Tela de Início / Home Dashboard com persistência de sessão
   const [isHomeOpen, setIsHomeOpen] = useState<boolean>(() => {
@@ -97,13 +99,81 @@ export const App: React.FC = () => {
     } catch {}
   }, [isHomeOpen]);
 
-  // Seleção de modelo com transição automática para o editor
+  // 6.6 Transição Cinemática 3D entre Home e Editor via GSAP
+  const isInitialMount = useRef(true);
+  const viewContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    if (!viewContainerRef.current) return;
+
+    // Respeita acessibilidade (prefers-reduced-motion)
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) return;
+
+    if (isHomeOpen) {
+      // Editor -> Home: Afastamento em profundidade (Zoom Out Z)
+      gsap.fromTo(
+        viewContainerRef.current,
+        {
+          opacity: 0,
+          scale: 1.04,
+          z: 50,
+          filter: 'blur(4px)',
+        },
+        {
+          opacity: 1,
+          scale: 1,
+          z: 0,
+          filter: 'blur(0px)',
+          duration: 0.4,
+          ease: 'power2.out',
+          clearProps: 'transform,filter,opacity',
+        }
+      );
+    } else if (isPrinterBooting) {
+      // Quando a animação tátil da impressora está em execução, mantemos o canvas
+      // estável no plano zero para que a fusão contínua ocorra sem saltos de matriz
+      gsap.set(viewContainerRef.current, { clearProps: 'transform,filter,opacity' });
+    } else {
+      // Home -> Editor: Mergulho na prancheta (Zoom In Z)
+      gsap.fromTo(
+        viewContainerRef.current,
+        {
+          opacity: 0,
+          scale: 0.95,
+          z: -50,
+          filter: 'blur(4px)',
+        },
+        {
+          opacity: 1,
+          scale: 1,
+          z: 0,
+          filter: 'blur(0px)',
+          duration: 0.4,
+          ease: 'power2.out',
+          clearProps: 'transform,filter,opacity',
+        }
+      );
+    }
+  }, [isHomeOpen, isPrinterBooting]);
+
+  // Seleção de modelo com transição tátil mecânica da impressora para o editor
   const handleSelectTemplate = useCallback(
     (id: string) => {
+      const target = templates.find((t) => t.id === id) || null;
       selectTemplate(id);
-      setIsHomeOpen(false);
+      if (isHomeOpen) {
+        setBootingTemplate(target);
+        setIsPrinterBooting(true);
+        setIsHomeOpen(false);
+      }
     },
-    [selectTemplate]
+    [selectTemplate, isHomeOpen, templates]
   );
 
   // Duplicação de modelo personalizado ou padrão para customizado
@@ -162,6 +232,10 @@ export const App: React.FC = () => {
 
   const handleSaveCustomTemplate = (def: CustomTemplateDefinition) => {
     const saved = saveTemplate(def);
+    if (isHomeOpen) {
+      setBootingTemplate(saved);
+      setIsPrinterBooting(true);
+    }
     setIsHomeOpen(false);
     showToast(`Modelo "${saved.name}" salvo com sucesso!`);
   };
@@ -231,11 +305,15 @@ export const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-surface-app text-foreground-primary">
-      {/* Introdução Cinemática 3D (Galeria 3D com Wireframe Grid Floor e Paralaxe) */}
-      {isIntroActive && (
-        <CinematicIntroSplash
-          activeTemplate={currentTemplate}
-          onComplete={() => setIsIntroActive(false)}
+      {/* Animação Tátil de Boot: Impressora Térmica Alimentando o Papel */}
+      {isPrinterBooting && (
+        <PrinterBootAnimation
+          activeTemplate={bootingTemplate || currentTemplate}
+          formData={formData}
+          onComplete={() => {
+            setIsPrinterBooting(false);
+            setBootingTemplate(null);
+          }}
         />
       )}
 
@@ -267,29 +345,34 @@ export const App: React.FC = () => {
         onToggleHome={() => setIsHomeOpen((prev) => !prev)}
       />
 
-      {/* 2. Conteúdo Principal: Home Dashboard OU Workspace de Edição */}
-      {isHomeOpen ? (
-        <div key="home-view" className="flex-1 flex flex-col overflow-hidden animate-view-fade">
-          <HomeDashboard
-            currentTemplate={currentTemplate}
-            customTemplates={customTemplates}
-            onSelectTemplate={handleSelectTemplate}
-            onOpenCreateModal={() => {
-              setEditingTemplate(null);
-              setIsEditorOpen(true);
-            }}
-            onImportTemplate={(def) => {
-              const saved = saveTemplate(def);
-              handleSelectTemplate(saved.id);
-            }}
-            onDeleteCustomTemplate={handleDeleteCustomTemplate}
-            onDuplicateTemplate={handleDuplicateTemplate}
-            onReturnToEditor={() => setIsHomeOpen(false)}
-            showToast={showToast}
-          />
-        </div>
-      ) : (
-        <main key="editor-view" id="main-content" className="flex-1 flex overflow-hidden relative animate-view-fade">
+      {/* 2. Conteúdo Principal: Transição 3D Cinemática (Home ⇄ Editor) */}
+      <div
+        ref={viewContainerRef}
+        className="flex-1 flex overflow-hidden relative"
+        style={{ perspective: '1200px', transformStyle: 'preserve-3d' }}
+      >
+        {isHomeOpen ? (
+          <div key="home-view" className="flex-1 flex flex-col overflow-hidden">
+            <HomeDashboard
+              currentTemplate={currentTemplate}
+              customTemplates={customTemplates}
+              onSelectTemplate={handleSelectTemplate}
+              onOpenCreateModal={() => {
+                setEditingTemplate(null);
+                setIsEditorOpen(true);
+              }}
+              onImportTemplate={(def) => {
+                const saved = saveTemplate(def);
+                handleSelectTemplate(saved.id);
+              }}
+              onDeleteCustomTemplate={handleDeleteCustomTemplate}
+              onDuplicateTemplate={handleDuplicateTemplate}
+              onReturnToEditor={() => setIsHomeOpen(false)}
+              showToast={showToast}
+            />
+          </div>
+        ) : (
+          <main key="editor-view" id="main-content" className="flex-1 flex overflow-hidden relative">
           {/* Coluna 1: Biblioteca de Modelos (Retrátil) */}
           <ModelsSidebar
             templates={templates}
@@ -346,6 +429,7 @@ export const App: React.FC = () => {
         />
       </main>
       )}
+      </div>
 
       {/* Container de Impressão Off-screen Isolado (Garante envio puro ao spooler fora do fluxo de renderização) */}
       <div

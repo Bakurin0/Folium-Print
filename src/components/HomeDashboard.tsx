@@ -384,7 +384,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                     Nenhum modelo salvo ainda
                   </h3>
                   <p className="text-xs text-foreground-secondary mt-1 max-w-sm">
-                    Comece criando uma etiqueta em branco sob medida ou importe um arquivo existente (.folium, .svg, .json).
+                    Comece criando uma etiqueta em branco sob medida ou importe um arquivo existente (.folium, .json, .svg,ou .html).
                   </p>
                 </div>
                 <div className="flex items-center gap-2 mt-1">

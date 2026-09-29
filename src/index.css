@@ -126,29 +126,6 @@
   }
 }
 
-/* 3D Cinematic Splash Keyframes (Emil Kowalski Philosophy: GPU transforms & natural starting scale 0.95) */
-@keyframes cardRevealIn {
-  from {
-    opacity: 0;
-    transform: translateZ(-80px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateZ(0) scale(1);
-  }
-}
-
-@keyframes introPulse {
-  0%, 100% {
-    opacity: 0.6;
-    transform: scale(0.98);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.02);
-  }
-}
-
 /* Dashboard Entrance Stagger (CSS Hardware Accelerated, Emil Kowalski Stagger Principle) */
 @keyframes dashboardCardEnter {
   from {
