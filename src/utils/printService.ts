@@ -84,14 +84,26 @@ export const executePixelPerfectPrint = ({
               @media print {
                 html, body {
                   width: ${widthMm}mm !important;
-                  height: ${heightMm}mm !important;
                   margin: 0 !important;
                   padding: 0 !important;
                   background-color: #ffffff !important;
                   -webkit-print-color-adjust: exact !important;
                   print-color-adjust: exact !important;
                   color-adjust: exact !important;
+                }
+                
+                .print-page {
+                  width: ${widthMm}mm !important;
+                  height: ${heightMm}mm !important;
+                  page-break-after: always !important;
+                  break-after: page !important;
                   overflow: hidden !important;
+                  position: relative !important;
+                }
+
+                .print-page:last-child {
+                  page-break-after: avoid !important;
+                  break-after: avoid !important;
                 }
                 
                 .no-print {
@@ -103,10 +115,17 @@ export const executePixelPerfectPrint = ({
                 margin: 0;
                 padding: 0;
                 width: ${widthMm}mm;
-                height: ${heightMm}mm;
                 box-sizing: border-box;
                 background-color: #ffffff;
                 font-family: 'Inter', system-ui, -apple-system, sans-serif;
+              }
+
+              .print-page {
+                width: ${widthMm}mm;
+                height: ${heightMm}mm;
+                box-sizing: border-box;
+                position: relative;
+                overflow: hidden;
               }
 
               * {
@@ -117,7 +136,7 @@ export const executePixelPerfectPrint = ({
             </style>
           </head>
           <body>
-            <div id="print-root" style="width:${widthMm}mm; height:${heightMm}mm; overflow:hidden; filter:${filterCss};">
+            <div id="print-root" style="width:${widthMm}mm; filter:${filterCss};">
               ${htmlContent}
             </div>
           </body>

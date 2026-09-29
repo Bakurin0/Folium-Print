@@ -7,6 +7,9 @@ interface UseKeyboardShortcutsOptions {
   onToggleShortcutsModal: () => void;
   onToggleLeftSidebar?: () => void;
   onToggleRightSidebar?: () => void;
+  onToggleFocusMode?: () => void;
+  onCloseFile?: () => void;
+  onToggleHome?: () => void;
   isModalOpen: boolean;
   onCloseModal: () => void;
 }
@@ -18,6 +21,9 @@ export const useKeyboardShortcuts = ({
   onToggleShortcutsModal,
   onToggleLeftSidebar,
   onToggleRightSidebar,
+  onToggleFocusMode,
+  onCloseFile,
+  onToggleHome,
   isModalOpen,
   onCloseModal,
 }: UseKeyboardShortcutsOptions) => {
@@ -30,10 +36,31 @@ export const useKeyboardShortcuts = ({
         return;
       }
 
+      // Ctrl + H or Cmd + H -> Toggle Home / Dashboard
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'h' && onToggleHome) {
+        e.preventDefault();
+        onToggleHome();
+        return;
+      }
+
+      // Ctrl + W or Cmd + W -> Fechar arquivo aberto
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'w' && onCloseFile) {
+        e.preventDefault();
+        onCloseFile();
+        return;
+      }
+
       // Ctrl + P or Cmd + P -> Trigger Print
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
         e.preventDefault();
         onPrint();
+        return;
+      }
+
+      // Ctrl + Shift + F or Cmd + Shift + F -> Toggle Focus Mode
+      if ((e.ctrlKey || e.metaKey) && (e.shiftKey || e.altKey) && e.key.toLowerCase() === 'f' && onToggleFocusMode) {
+        e.preventDefault();
+        onToggleFocusMode();
         return;
       }
 
@@ -88,6 +115,9 @@ export const useKeyboardShortcuts = ({
     onToggleShortcutsModal, 
     onToggleLeftSidebar, 
     onToggleRightSidebar, 
+    onToggleFocusMode,
+    onCloseFile,
+    onToggleHome,
     isModalOpen, 
     onCloseModal
   ]);

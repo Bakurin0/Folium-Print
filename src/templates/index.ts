@@ -1,8 +1,8 @@
 import { Template } from '../types/template';
 
 /**
- * Catálogo de modelos pré-instalados de fábrica.
- * Inicialmente vazio para permitir um catálogo 100% gerenciado pelo usuário.
+ * Catálogo de modelos do sistema.
+ * Atualmente vazio por solicitação do usuário, priorizando modelos criados e salvos pelo usuário.
  */
 export const ALL_TEMPLATES: Template[] = [];
 
@@ -19,7 +19,12 @@ export const getDefaultFormData = (template?: Template | null): Record<string, a
   if (template.grid) {
     data._gridCopies = template.grid.rows * template.grid.cols;
     data._gridStartPosition = 0;
+  } else {
+    data._thermalCopies = 1;
+    data._previewCopyIndex = 1;
   }
+
+  data._hideSingleCopy = true;
 
   return data;
 };

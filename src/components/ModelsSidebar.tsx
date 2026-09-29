@@ -9,10 +9,9 @@ import {
   Pencil, 
   Check, 
   X, 
-  Sparkles,
-  ChevronDown
 } from 'lucide-react';
-import { Template, CustomTemplateDefinition } from '../types/template';
+import { Template } from '../types/template';
+import { formatShortcut } from '../utils/platform';
 
 interface ModelsSidebarProps {
   templates: Template[];
@@ -22,251 +21,48 @@ interface ModelsSidebarProps {
   onOpenCreateModal: () => void;
   onEditCustomTemplate?: (template: Template) => void;
   onDeleteCustomTemplate: (templateId: string) => void;
-  onSaveQuickPreset?: (preset: CustomTemplateDefinition) => void;
 }
 
-// Presets de mercado populares para criação instantânea com 1 clique
-const QUICK_PRESETS: Array<{
-  name: string;
-  category: 'thermal' | 'a4-sheet' | 'document';
-  widthMm: number;
-  heightMm: number;
-  description: string;
-  presetDef: CustomTemplateDefinition;
-}> = [
-  {
-    name: 'Etiqueta Térmica 100×50',
-    category: 'thermal',
-    widthMm: 100,
-    heightMm: 50,
-    description: 'Padrão logístico e e-commerce para Zebra / Argox',
-    presetDef: {
-      id: 'quick-thermal-100x50',
-      name: 'Etiqueta Térmica 100×50',
-      description: 'Padrão logístico e e-commerce para impressoras térmicas',
-      category: 'thermal',
-      dimensions: { widthMm: 100, heightMm: 50, orientation: 'landscape' },
-      fields: [
-        {
-          key: 'destinatario',
-          label: 'Destinatário',
-          type: 'text',
-          required: true,
-          xMm: 5,
-          yMm: 6,
-          widthMm: 90,
-          heightMm: 8,
-          fontSizePt: 12,
-          fontWeight: 'bold',
-          defaultValue: 'DESTINATÁRIO EXEMPLO',
-        },
-        {
-          key: 'endereco',
-          label: 'Endereço',
-          type: 'text',
-          required: true,
-          xMm: 5,
-          yMm: 15,
-          widthMm: 90,
-          heightMm: 10,
-          fontSizePt: 9,
-          defaultValue: 'Av. Paulista, 1000 - Bela Vista - São Paulo/SP',
-        },
-        {
-          key: 'codigo_rastreio',
-          label: 'Código de Rastreio',
-          type: 'barcode',
-          required: true,
-          xMm: 10,
-          yMm: 27,
-          widthMm: 80,
-          heightMm: 16,
-          barcodeFormat: 'CODE128',
-          defaultValue: 'BR9876543210',
-        },
-      ],
-    },
-  },
-  {
-    name: 'Folha A4 10 Etiquetas (Pimaco)',
-    category: 'a4-sheet',
-    widthMm: 210,
-    heightMm: 297,
-    description: '2 colunas × 5 linhas (101.6 × 50.8 mm)',
-    presetDef: {
-      id: 'quick-a4-pimaco-10',
-      name: 'Folha A4 10 Etiquetas',
-      description: 'Matriz Pimaco 2x5 para envio de encomendas e pastas',
-      category: 'a4-sheet',
-      dimensions: { widthMm: 210, heightMm: 297, orientation: 'portrait' },
-      grid: {
-        rows: 5,
-        cols: 2,
-        labelWidthMm: 101.6,
-        labelHeightMm: 50.8,
-        marginTopMm: 21.2,
-        marginLeftMm: 3.4,
-        gapX: 0,
-        gapY: 0,
-      },
-      fields: [
-        {
-          key: 'titulo',
-          label: 'Título da Etiqueta',
-          type: 'text',
-          required: true,
-          xMm: 4,
-          yMm: 5,
-          widthMm: 93,
-          heightMm: 8,
-          fontSizePt: 11,
-          fontWeight: 'bold',
-          defaultValue: 'ARQUIVO / DOCUMENTO',
-        },
-        {
-          key: 'subtitulo',
-          label: 'Descrição',
-          type: 'text',
-          required: false,
-          xMm: 4,
-          yMm: 14,
-          widthMm: 93,
-          heightMm: 12,
-          fontSizePt: 9,
-          defaultValue: 'Referência interna de inventário Folium',
-        },
-        {
-          key: 'qr_doc',
-          label: 'QR Code',
-          type: 'qrcode',
-          required: true,
-          xMm: 75,
-          yMm: 26,
-          widthMm: 20,
-          heightMm: 20,
-          defaultValue: 'https://folium.app',
-        },
-      ],
-    },
-  },
-  {
-    name: 'Mini Tag / Joia (35×15 mm)',
-    category: 'thermal',
-    widthMm: 35,
-    heightMm: 15,
-    description: 'Etiqueta compacta para produtos, joias ou cabos',
-    presetDef: {
-      id: 'quick-tag-35x15',
-      name: 'Mini Tag 35×15',
-      description: 'Etiqueta compacta de preço e identificação',
-      category: 'thermal',
-      dimensions: { widthMm: 35, heightMm: 15, orientation: 'landscape' },
-      fields: [
-        {
-          key: 'produto',
-          label: 'Produto',
-          type: 'text',
-          required: true,
-          xMm: 2,
-          yMm: 2.5,
-          widthMm: 31,
-          heightMm: 4,
-          fontSizePt: 7,
-          fontWeight: 'bold',
-          defaultValue: 'ANEL PRATA 925',
-        },
-        {
-          key: 'preco',
-          label: 'Preço',
-          type: 'text',
-          required: true,
-          xMm: 2,
-          yMm: 7,
-          widthMm: 18,
-          heightMm: 5,
-          fontSizePt: 8,
-          fontWeight: 'bold',
-          defaultValue: 'R$ 149,90',
-        },
-        {
-          key: 'codigo_item',
-          label: 'Código',
-          type: 'qrcode',
-          required: false,
-          xMm: 22,
-          yMm: 5.5,
-          widthMm: 9,
-          heightMm: 9,
-          defaultValue: 'ITEM-00912',
-        },
-      ],
-    },
-  },
-  {
-    name: 'Cartão de Visita / Crachá (90×50 mm)',
-    category: 'document',
-    widthMm: 90,
-    heightMm: 50,
-    description: 'Padrão brasileiro de cartões e identificação',
-    presetDef: {
-      id: 'quick-card-90x50',
-      name: 'Cartão de Visita 90×50',
-      description: 'Cartão de visita com acabamento gráfico',
-      category: 'document',
-      dimensions: { widthMm: 90, heightMm: 50, orientation: 'landscape' },
-      fields: [
-        {
-          key: 'nome',
-          label: 'Nome Completo',
-          type: 'text',
-          required: true,
-          xMm: 6,
-          yMm: 8,
-          widthMm: 78,
-          heightMm: 8,
-          fontSizePt: 13,
-          fontWeight: 'bold',
-          defaultValue: 'ALEXANDRE SILVA',
-        },
-        {
-          key: 'cargo',
-          label: 'Cargo / Função',
-          type: 'text',
-          required: false,
-          xMm: 6,
-          yMm: 16,
-          widthMm: 78,
-          heightMm: 6,
-          fontSizePt: 9,
-          defaultValue: 'Diretor de Design & Tecnologia',
-        },
-        {
-          key: 'contato',
-          label: 'Contato / Email',
-          type: 'text',
-          required: false,
-          xMm: 6,
-          yMm: 34,
-          widthMm: 55,
-          heightMm: 10,
-          fontSizePt: 8,
-          defaultValue: 'alexandre@empresa.com.br\n+55 (11) 98765-4321',
-        },
-        {
-          key: 'vcard_qr',
-          label: 'vCard QR',
-          type: 'qrcode',
-          required: true,
-          xMm: 67,
-          yMm: 27,
-          widthMm: 17,
-          heightMm: 17,
-          defaultValue: 'https://contato.bio/alexandre',
-        },
-      ],
-    },
-  },
-];
+
+/**
+ * Miniatura geométrica proporcional da etiqueta física na barra lateral.
+ */
+const SidebarLabelMiniature: React.FC<{ widthMm: number; heightMm: number; grid?: any }> = ({
+  widthMm,
+  heightMm,
+  grid,
+}) => {
+  const maxBoxSize = 22; // px
+  const isLandscape = widthMm >= heightMm;
+  const ratio = isLandscape ? heightMm / widthMm : widthMm / heightMm;
+  const boxW = isLandscape ? maxBoxSize : Math.max(11, Math.round(maxBoxSize * ratio));
+  const boxH = isLandscape ? Math.max(9, Math.round(maxBoxSize * ratio)) : maxBoxSize;
+
+  return (
+    <div
+      className="w-7 h-7 rounded-[6px] bg-black/[0.04] border border-black/[0.06] flex items-center justify-center shrink-0 group-hover:bg-white group-hover:shadow-2xs transition-all duration-snappy mt-0.5"
+      aria-hidden="true"
+    >
+      <div
+        style={{ width: `${boxW}px`, height: `${boxH}px` }}
+        className="rounded-[2px] bg-white border border-black/25 shadow-2xs p-0.5 flex flex-col justify-between overflow-hidden"
+      >
+        {grid ? (
+          <div className="w-full h-full grid grid-cols-2 grid-rows-3 gap-0.5 opacity-60">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="bg-black/30 rounded-[0.5px]" />
+            ))}
+          </div>
+        ) : (
+          <>
+            <div className="w-full h-0.5 bg-black/40 rounded-full" />
+            <div className="w-2/3 h-0.5 bg-black/20 rounded-full" />
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
 
 /**
  * Sidebar de Modelos macOS Studio.
@@ -280,10 +76,8 @@ export const ModelsSidebar: React.FC<ModelsSidebarProps> = ({
   onOpenCreateModal,
   onEditCustomTemplate,
   onDeleteCustomTemplate,
-  onSaveQuickPreset,
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [isPresetsDropdownOpen, setIsPresetsDropdownOpen] = useState<boolean>(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Filtra modelos pela busca
@@ -327,120 +121,42 @@ export const ModelsSidebar: React.FC<ModelsSidebarProps> = ({
     }
   };
 
-  const handleApplyPreset = (preset: typeof QUICK_PRESETS[0]) => {
-    if (onSaveQuickPreset) {
-      const uniqueId = `custom-${Date.now()}`;
-      onSaveQuickPreset({
-        ...preset.presetDef,
-        id: uniqueId,
-        name: preset.name,
-      });
-    }
-    setIsPresetsDropdownOpen(false);
-  };
-
-  if (!isOpen) return null;
-
   return (
     <aside
       aria-label="Biblioteca de Modelos"
-      className="w-72 xl:w-80 h-full border-r border-border/80 bg-surface-card flex flex-col shrink-0 z-20 transition-all duration-snappy ease-out select-none"
+      aria-hidden={!isOpen}
+      className={`h-full border-black/[0.06] bg-[#fbfbfa] flex flex-col shrink-0 z-20 transition-all duration-snappy ease-out select-none overflow-hidden ${
+        isOpen
+          ? 'w-72 xl:w-80 border-r opacity-100 pointer-events-auto'
+          : 'w-0 border-r-0 opacity-0 pointer-events-none'
+      }`}
     >
+      <div className="w-72 xl:w-80 h-full flex flex-col shrink-0">
       {/* 1. Header da Barra de Modelos */}
-      <div className="p-3 border-b border-border/70 flex items-center justify-between gap-2">
+      <div className="p-3 border-b border-black/[0.06] flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
           <span className="text-xs font-semibold tracking-display text-foreground-primary">
             Biblioteca
           </span>
-          <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-[4px] bg-surface-subtle text-foreground-muted">
+          <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-[4px] bg-black/[0.05] text-foreground-muted">
             {templates.length}
           </span>
         </div>
 
-        {/* Botão Novo Modelo com Dropdown de Presets */}
-        <div className="relative">
-          <div className="inline-flex rounded-[6px] shadow-xs border border-border bg-surface-card">
-            <button
-              type="button"
-              onClick={onOpenCreateModal}
-              className="btn-tactile px-2 py-1 text-xs font-medium text-foreground-primary hover:bg-surface-subtle flex items-center gap-1 rounded-l-[6px]"
-              title="Criar novo modelo em branco"
-            >
-              <Plus className="w-3 h-3 text-[#3a86ff]" strokeWidth={2.5} />
-              <span>Novo</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsPresetsDropdownOpen((prev) => !prev)}
-              aria-label="Ver presets rápidos de modelo"
-              aria-expanded={isPresetsDropdownOpen}
-              className="btn-tactile px-1.5 py-1 text-foreground-muted hover:text-foreground-primary hover:bg-surface-subtle border-l border-border rounded-r-[6px]"
-              title="Modelos rápidos pré-configurados"
-            >
-              <ChevronDown className="w-3 h-3" />
-            </button>
-          </div>
-
-          {/* Menu Dropdown de Presets Rápidos */}
-          {isPresetsDropdownOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-30"
-                onClick={() => setIsPresetsDropdownOpen(false)}
-              />
-              <div className="absolute right-0 top-full mt-1.5 w-64 apple-glass border border-border/80 rounded-[8px] shadow-lg p-1.5 z-40 animate-modal-enter">
-                <div className="px-2 py-1 text-[10px] font-semibold text-foreground-muted uppercase tracking-wider flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-[#ffbe0b]" />
-                  <span>Modelos de Ponto de Partida</span>
-                </div>
-                <div className="space-y-0.5 mt-1">
-                  {QUICK_PRESETS.map((p) => (
-                    <button
-                      key={p.name}
-                      type="button"
-                      onClick={() => handleApplyPreset(p)}
-                      className="btn-tactile w-full p-2 text-left rounded-[6px] hover:bg-surface-subtle/80 flex items-start gap-2 text-xs"
-                    >
-                      <div className="mt-0.5 text-foreground-muted">
-                        {p.category === 'thermal' ? (
-                          <Tag className="w-3.5 h-3.5 text-[#3a86ff]" />
-                        ) : (
-                          <Layers className="w-3.5 h-3.5 text-[#8338ec]" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-foreground-primary truncate flex items-center justify-between">
-                          <span>{p.name}</span>
-                          <span className="text-[10px] font-mono text-foreground-muted">
-                            {p.widthMm}×{p.heightMm}mm
-                          </span>
-                        </div>
-                        <div className="text-[10px] text-foreground-muted truncate">
-                          {p.description}
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                  <hr className="border-border my-1" />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsPresetsDropdownOpen(false);
-                      onOpenCreateModal();
-                    }}
-                    className="btn-tactile w-full p-1.5 text-center text-xs font-medium text-[#3a86ff] hover:bg-surface-subtle/80 rounded-[6px]"
-                  >
-                    + Criar Modelo Personalizado em Branco
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+        {/* Botão Novo Modelo */}
+        <button
+          type="button"
+          onClick={onOpenCreateModal}
+          className="btn-tactile px-2.5 py-1 text-xs font-medium text-foreground-primary hover:bg-black/[0.04] rounded-[7px] border border-black/[0.08] bg-surface-card flex items-center gap-1 shadow-2xs transition-all duration-snappy"
+          title="Criar novo modelo em branco"
+        >
+          <Plus className="w-3.5 h-3.5 text-[#3a86ff]" strokeWidth={2.5} />
+          <span>Novo</span>
+        </button>
       </div>
 
-      {/* 2. Campo de Busca Instantânea */}
-      <div className="p-2.5 border-b border-border/60">
+      {/* 2. Campo de Busca Instantânea Estilo macOS Search Field */}
+      <div className="p-2.5 border-b border-black/[0.06]">
         <div className="relative">
           <Search className="w-3.5 h-3.5 text-foreground-muted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
@@ -449,9 +165,9 @@ export const ModelsSidebar: React.FC<ModelsSidebarProps> = ({
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar modelos..."
             aria-label="Buscar modelos por nome ou dimensão"
-            className="w-full pl-8 pr-7 py-1.5 text-xs bg-surface-subtle/70 hover:bg-surface-subtle focus:bg-surface-card border border-border/80 focus:border-[#3a86ff] rounded-[6px] transition-colors outline-none placeholder:text-foreground-muted"
+            className="w-full pl-8 pr-14 h-7 text-xs bg-black/[0.035] hover:bg-black/[0.05] focus:bg-white border border-black/[0.06] focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/20 rounded-[7px] transition-all outline-none placeholder:text-foreground-muted"
           />
-          {searchQuery && (
+          {searchQuery ? (
             <button
               type="button"
               onClick={() => setSearchQuery('')}
@@ -460,24 +176,32 @@ export const ModelsSidebar: React.FC<ModelsSidebarProps> = ({
             >
               <X className="w-3 h-3" />
             </button>
+          ) : (
+            <kbd className="absolute right-2 top-1/2 -translate-y-1/2 font-mono text-[9px] bg-black/[0.04] text-foreground-muted px-1.5 py-0.5 rounded-[4px] border border-black/[0.06] pointer-events-none select-none">
+              {formatShortcut('F')}
+            </kbd>
           )}
         </div>
       </div>
 
-      {/* 3. Lista de Modelos Cadastrados */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
+      {/* 3. Lista de Modelos Cadastrados com Seleção em Pílula Apple */}
+      <div className="flex-1 overflow-y-auto p-2 space-y-1">
         {filteredTemplates.length === 0 ? (
-          <div className="p-6 text-center space-y-2 text-foreground-muted">
-            <div className="w-8 h-8 rounded-[8px] bg-surface-subtle border border-border flex items-center justify-center mx-auto text-foreground-muted">
-              <FileText className="w-4 h-4" />
+          <div className="p-6 text-center space-y-3 text-foreground-muted animate-fadeIn">
+            <div className="w-10 h-10 rounded-[10px] bg-black/[0.04] border border-black/[0.06] flex items-center justify-center mx-auto text-foreground-muted">
+              <FileText className="w-5 h-5 text-foreground-muted" />
             </div>
-            <p className="text-xs">Nenhum modelo encontrado.</p>
+            <div className="space-y-0.5">
+              <p className="text-xs font-medium text-foreground-primary">Nenhum modelo encontrado</p>
+              <p className="text-[11px] text-foreground-muted">Crie ou importe etiquetas para sua biblioteca.</p>
+            </div>
             <button
               type="button"
               onClick={onOpenCreateModal}
-              className="btn-tactile text-xs text-[#3a86ff] font-medium hover:underline inline-block mt-1"
+              className="btn-tactile mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] bg-white border border-black/[0.08] shadow-2xs hover:bg-black/[0.03] text-foreground-primary text-xs font-medium transition-colors"
             >
-              Criar modelo agora
+              <Plus className="w-3.5 h-3.5 text-[#3a86ff]" strokeWidth={2.5} />
+              <span>Criar Novo Modelo</span>
             </button>
           </div>
         ) : (
@@ -488,48 +212,38 @@ export const ModelsSidebar: React.FC<ModelsSidebarProps> = ({
             return (
               <div
                 key={tpl.id}
-                className={`group relative rounded-[8px] border transition-all duration-snappy ${
+                className={`group relative rounded-[8px] transition-all duration-snappy ${
                   isSelected
-                    ? 'border-[#3a86ff]/80 bg-white shadow-xs ring-1 ring-[#3a86ff]/30'
-                    : 'border-border/70 bg-surface-card hover:bg-surface-subtle/60 text-foreground-secondary'
+                    ? 'bg-white shadow-[0_1px_3px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.08)]'
+                    : 'hover:bg-black/[0.03] text-foreground-secondary'
                 }`}
               >
                 <button
                   type="button"
                   onClick={() => onSelectTemplate(tpl.id)}
-                  className="w-full p-2.5 text-left flex items-start gap-2.5"
+                  className="w-full p-2.5 text-left flex items-start gap-2.5 active:scale-[0.985] transition-transform duration-120"
                 >
-                  <div
-                    className="p-1.5 rounded-[6px] shrink-0 transition-colors"
-                    style={{
-                      color: theme.color,
-                      backgroundColor: theme.bg,
-                      border: `1px solid ${theme.border}`,
-                    }}
-                  >
-                    {theme.icon}
-                  </div>
+                  <SidebarLabelMiniature
+                    widthMm={tpl.dimensions.widthMm}
+                    heightMm={tpl.dimensions.heightMm}
+                    grid={tpl.grid}
+                  />
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1">
-                      <span
-                        className={`text-xs font-semibold truncate ${
-                          isSelected ? 'text-foreground-primary' : 'text-foreground-primary'
-                        }`}
-                      >
-                        {tpl.name}
-                      </span>
-                      <span className="text-[10px] font-mono text-foreground-muted shrink-0">
-                        {tpl.dimensions.widthMm}×{tpl.dimensions.heightMm}mm
-                      </span>
-                    </div>
+                  <div className="flex-1 min-w-0 pr-10">
+                    <span className="text-xs font-semibold text-foreground-primary line-clamp-2 leading-tight block">
+                      {tpl.name}
+                    </span>
 
                     <div className="text-[11px] text-foreground-muted truncate mt-0.5">
-                      {tpl.description || 'Modelo sem descrição'}
+                      {tpl.description || 'Modelo pronto para impressão'}
                     </div>
 
-                    {/* Tags da Categoria e Custom */}
-                    <div className="flex items-center gap-1.5 mt-1.5">
+                    {/* Badges de Dimensões, Categoria e Custom */}
+                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-[4px] bg-black/[0.04] text-foreground-secondary border border-black/[0.05]">
+                        {tpl.dimensions.widthMm}×{tpl.dimensions.heightMm}mm
+                      </span>
+
                       <span
                         className="text-[9px] font-mono uppercase px-1.5 py-0.2 rounded-[4px] border"
                         style={{
@@ -542,7 +256,7 @@ export const ModelsSidebar: React.FC<ModelsSidebarProps> = ({
                       </span>
 
                       {tpl.isCustom && (
-                        <span className="text-[9px] font-mono uppercase px-1.5 py-0.2 rounded-[4px] bg-[#ff006e]/10 text-[#ff006e] border border-[#ff006e]/20">
+                        <span className="text-[9px] font-mono uppercase px-1.5 py-0.2 rounded-[4px] bg-black/[0.04] text-foreground-secondary border border-black/[0.06]">
                           Personalizado
                         </span>
                       )}
@@ -616,6 +330,7 @@ export const ModelsSidebar: React.FC<ModelsSidebarProps> = ({
             );
           })
         )}
+        </div>
       </div>
     </aside>
   );

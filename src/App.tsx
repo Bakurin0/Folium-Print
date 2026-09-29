@@ -1,12 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { getDefaultFormData } from './templates';
-import { TemplateFormData, CustomTemplateDefinition } from './types/template';
+import { Template, TemplateFormData, CustomTemplateDefinition } from './types/template';
 import { UnifiedToolbar } from './components/UnifiedToolbar';
 import { ModelsSidebar } from './components/ModelsSidebar';
 import { StudioCanvas } from './components/StudioCanvas';
-import { InspectorPanel } from './components/InspectorPanel';
+import { InspectorPanel, InspectorTab } from './components/InspectorPanel';
 import { ShortcutsModal } from './components/ShortcutsModal';
 import { VisualTemplateEditorModal } from './components/VisualTemplateEditorModal';
+import { HomeDashboard } from './components/HomeDashboard';
+import { CinematicIntroSplash } from './components/CinematicIntroSplash';
 import { executePixelPerfectPrint } from './utils/printService';
 import { generateCropMarksSvg } from './utils/cropMarksGenerator';
 import { sanitizeSvg } from './utils/sanitizeSvg';
@@ -33,11 +35,14 @@ export const App: React.FC = () => {
   // 3. Catálogo de Modelos (Built-in + Personalizados)
   const {
     templates,
+    customTemplates,
     selectedTemplateId,
     currentTemplate,
     selectTemplate,
+    closeTemplate,
     nextTemplate,
     saveTemplate,
+    updateCurrentTemplateFields,
     deleteTemplate,
   } = useTemplateCatalog((newTemplate) => {
     setFormData(getDefaultFormData(newTemplate));
@@ -63,13 +68,78 @@ export const App: React.FC = () => {
     getDefaultFormData(currentTemplate)
   );
 
-  // 6. Estado das Barras Laterais e Modais (macOS Studio Layout)
+  // 6. Estado das Barras Laterais, Foco e Modais
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState<boolean>(true);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState<boolean>(true);
+  const [isFocusMode, setIsFocusMode] = useState<boolean>(false);
+  const [activeInspectorTab, setActiveInspectorTab] = useState<InspectorTab>('data');
   const [isPrinting, setIsPrinting] = useState<boolean>(false);
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState<boolean>(false);
   const [isEditorOpen, setIsEditorOpen] = useState<boolean>(false);
   const [editingTemplate, setEditingTemplate] = useState<CustomTemplateDefinition | null>(null);
+  // Estado da introdução cinemática 3D
+  const [isIntroActive, setIsIntroActive] = useState<boolean>(true);
+
+  // 6.5 Estado da Tela de Início / Home Dashboard com persistência de sessão
+  const [isHomeOpen, setIsHomeOpen] = useState<boolean>(() => {
+    try {
+      const savedHome = localStorage.getItem('folium-is-home-open');
+      if (savedHome !== null) {
+        return savedHome === 'true';
+      }
+    } catch {}
+    return !currentTemplate;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('folium-is-home-open', String(isHomeOpen));
+    } catch {}
+  }, [isHomeOpen]);
+
+  // Seleção de modelo com transição automática para o editor
+  const handleSelectTemplate = useCallback(
+    (id: string) => {
+      selectTemplate(id);
+      setIsHomeOpen(false);
+    },
+    [selectTemplate]
+  );
+
+  // Duplicação de modelo personalizado ou padrão para customizado
+  const handleDuplicateTemplate = useCallback(
+    (tpl: Template) => {
+      const def: CustomTemplateDefinition = {
+        id: `custom-${Date.now()}`,
+        name: `${tpl.name} (Cópia)`,
+        category: tpl.category,
+        description: tpl.description,
+        dimensions: tpl.dimensions,
+        grid: tpl.grid,
+        backgroundSvg: tpl.backgroundSvg,
+        fields: tpl.fields ? JSON.parse(JSON.stringify(tpl.fields)) : [],
+        isCustom: true,
+      };
+      saveTemplate(def);
+      showToast(`Modelo duplicado como "${def.name}".`);
+    },
+    [saveTemplate, showToast]
+  );
+
+  // Alternância do Modo Foco (Oculta ambas as barras laterais)
+  const handleToggleFocusMode = useCallback(() => {
+    setIsFocusMode((prev) => {
+      const next = !prev;
+      if (next) {
+        setIsLeftSidebarOpen(false);
+        setIsRightSidebarOpen(false);
+      } else {
+        setIsLeftSidebarOpen(true);
+        setIsRightSidebarOpen(true);
+      }
+      return next;
+    });
+  }, []);
 
   // Handlers de dados
   const handleChangeField = (key: string, value: any) => {
@@ -92,6 +162,7 @@ export const App: React.FC = () => {
 
   const handleSaveCustomTemplate = (def: CustomTemplateDefinition) => {
     const saved = saveTemplate(def);
+    setIsHomeOpen(false);
     showToast(`Modelo "${saved.name}" salvo com sucesso!`);
   };
 
@@ -99,6 +170,11 @@ export const App: React.FC = () => {
     deleteTemplate(id);
     showToast('Modelo personalizado excluído.');
   };
+
+  // Cálculo de produção (total de etiquetas impressas nesta folha/sessão)
+  const productionCount = currentTemplate?.grid
+    ? Number(formData._gridCopies ?? (currentTemplate.grid.rows * currentTemplate.grid.cols))
+    : Number(formData._thermalCopies ?? 1);
 
   // 7. Despacho de Impressão Físico (Desacoplado do DOM da tela)
   const handlePrint = useCallback(async () => {
@@ -126,6 +202,13 @@ export const App: React.FC = () => {
     }
   }, [currentTemplate, offset, colorAdjustments, showToast]);
 
+  // Fechar o arquivo / modelo aberto atual e retornar à Home
+  const handleCloseFile = useCallback(() => {
+    closeTemplate();
+    setIsHomeOpen(true);
+    showToast('Modelo fechado.');
+  }, [closeTemplate, showToast]);
+
   // 8. Atalhos de Teclado Operacionais (macOS & Windows)
   useKeyboardShortcuts({
     onPrint: () => {
@@ -133,9 +216,12 @@ export const App: React.FC = () => {
     },
     onNextTemplate: nextTemplate,
     onReset: handleResetForm,
+    onCloseFile: handleCloseFile,
+    onToggleHome: () => setIsHomeOpen((prev) => !prev),
     onToggleShortcutsModal: () => setIsShortcutsModalOpen((prev) => !prev),
     onToggleLeftSidebar: () => setIsLeftSidebarOpen((prev) => !prev),
     onToggleRightSidebar: () => setIsRightSidebarOpen((prev) => !prev),
+    onToggleFocusMode: handleToggleFocusMode,
     isModalOpen: isShortcutsModalOpen || isEditorOpen,
     onCloseModal: () => {
       setIsShortcutsModalOpen(false);
@@ -145,6 +231,14 @@ export const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-surface-app text-foreground-primary">
+      {/* Introdução Cinemática 3D (Galeria 3D com Wireframe Grid Floor e Paralaxe) */}
+      {isIntroActive && (
+        <CinematicIntroSplash
+          activeTemplate={currentTemplate}
+          onComplete={() => setIsIntroActive(false)}
+        />
+      )}
+
       {/* Skip Link de Acessibilidade (WCAG 2.4.1) */}
       <a
         href="#main-content"
@@ -162,44 +256,78 @@ export const App: React.FC = () => {
         onToggleRightSidebar={() => setIsRightSidebarOpen((prev) => !prev)}
         onOpenShortcutsModal={() => setIsShortcutsModalOpen(true)}
         onPrint={handlePrint}
+        onCloseTemplate={handleCloseFile}
         isPrinting={isPrinting}
         colorAdjustments={colorAdjustments}
         cropMarks={cropMarks}
+        isFocusMode={isFocusMode}
+        onToggleFocusMode={handleToggleFocusMode}
+        productionCount={productionCount}
+        isHomeOpen={isHomeOpen}
+        onToggleHome={() => setIsHomeOpen((prev) => !prev)}
       />
 
-      {/* 2. Workspace de Três Colunas (macOS Studio Layout) */}
-      <main id="main-content" className="flex-1 flex overflow-hidden relative">
-        {/* Coluna 1: Biblioteca de Modelos (Retrátil) */}
-        <ModelsSidebar
-          templates={templates}
-          selectedTemplateId={selectedTemplateId}
-          isOpen={isLeftSidebarOpen}
-          onSelectTemplate={selectTemplate}
-          onOpenCreateModal={() => {
-            setEditingTemplate(null);
-            setIsEditorOpen(true);
-          }}
-          onEditCustomTemplate={(tpl) => {
-            setEditingTemplate(tpl);
-            setIsEditorOpen(true);
-          }}
-          onDeleteCustomTemplate={handleDeleteCustomTemplate}
-          onSaveQuickPreset={handleSaveCustomTemplate}
-        />
+      {/* 2. Conteúdo Principal: Home Dashboard OU Workspace de Edição */}
+      {isHomeOpen ? (
+        <div key="home-view" className="flex-1 flex flex-col overflow-hidden animate-view-fade">
+          <HomeDashboard
+            currentTemplate={currentTemplate}
+            customTemplates={customTemplates}
+            onSelectTemplate={handleSelectTemplate}
+            onOpenCreateModal={() => {
+              setEditingTemplate(null);
+              setIsEditorOpen(true);
+            }}
+            onImportTemplate={(def) => {
+              const saved = saveTemplate(def);
+              handleSelectTemplate(saved.id);
+            }}
+            onDeleteCustomTemplate={handleDeleteCustomTemplate}
+            onDuplicateTemplate={handleDuplicateTemplate}
+            onReturnToEditor={() => setIsHomeOpen(false)}
+            showToast={showToast}
+          />
+        </div>
+      ) : (
+        <main key="editor-view" id="main-content" className="flex-1 flex overflow-hidden relative animate-view-fade">
+          {/* Coluna 1: Biblioteca de Modelos (Retrátil) */}
+          <ModelsSidebar
+            templates={templates}
+            selectedTemplateId={selectedTemplateId}
+            isOpen={isLeftSidebarOpen}
+            onSelectTemplate={handleSelectTemplate}
+            onOpenCreateModal={() => {
+              setEditingTemplate(null);
+              setIsEditorOpen(true);
+            }}
+            onEditCustomTemplate={(tpl) => {
+              setEditingTemplate(tpl);
+              setIsEditorOpen(true);
+            }}
+            onDeleteCustomTemplate={handleDeleteCustomTemplate}
+          />
 
-        {/* Coluna 2: Studio Canvas com Réguas Milimétricas Óticas */}
+        {/* Coluna 2: Studio Canvas - Prancheta WYSIWYG de Alta Fidelidade */}
         <StudioCanvas
           template={currentTemplate}
           formData={formData}
           offset={offset}
           colorAdjustments={colorAdjustments}
           cropMarks={cropMarks}
+          onUpdateTemplateFields={updateCurrentTemplateFields}
+          onCreateTemplate={() => {
+            setEditingTemplate(null);
+            setIsEditorOpen(true);
+          }}
+          onOpenHome={() => setIsHomeOpen(true)}
         />
 
         {/* Coluna 3: Inspector de Ajustes (Retrátil com Segmented Control) */}
         <InspectorPanel
           currentTemplate={currentTemplate}
           isOpen={isRightSidebarOpen}
+          activeTab={activeInspectorTab}
+          onChangeTab={setActiveInspectorTab}
           formData={formData}
           offset={offset}
           colorAdjustments={colorAdjustments}
@@ -217,38 +345,97 @@ export const App: React.FC = () => {
           onExportPdf={handlePrint}
         />
       </main>
+      )}
 
-      {/* Container de Impressão Off-screen Isolado (Garante envio puro ao spooler) */}
+      {/* Container de Impressão Off-screen Isolado (Garante envio puro ao spooler fora do fluxo de renderização) */}
       <div
         ref={printOffscreenRef}
         aria-hidden="true"
-        className="sr-only fixed -left-[9999px] -top-[9999px] pointer-events-none"
         style={{
+          position: 'fixed',
+          left: '-99999px',
+          top: '-99999px',
           width: currentTemplate ? `${currentTemplate.dimensions.widthMm}mm` : '0',
           height: currentTemplate ? `${currentTemplate.dimensions.heightMm}mm` : '0',
-          position: 'relative',
+          pointerEvents: 'none',
+          visibility: 'hidden',
+          zIndex: -9999,
         }}
       >
-        {currentTemplate &&
-          currentTemplate.render({
-            data: formData,
-            offset: offset,
-            isPreview: false,
-          })}
-        {currentTemplate && cropMarks?.enabled && (
-          <div
-            className="absolute inset-0 pointer-events-none"
-            dangerouslySetInnerHTML={{
-              __html: sanitizeSvg(
-                generateCropMarksSvg({
-                  widthMm: currentTemplate.dimensions.widthMm,
-                  heightMm: currentTemplate.dimensions.heightMm,
-                  grid: currentTemplate.grid,
-                  settings: cropMarks,
-                })
-              ),
-            }}
-          />
+        {currentTemplate && (
+          currentTemplate.grid ? (
+            <div
+              className="print-page"
+              style={{
+                position: 'relative',
+                width: `${currentTemplate.dimensions.widthMm}mm`,
+                height: `${currentTemplate.dimensions.heightMm}mm`,
+                overflow: 'hidden',
+              }}
+            >
+              {currentTemplate.render({
+                data: formData,
+                offset: offset,
+                isPreview: false,
+                hideSingleCopy: formData._hideSingleCopy !== false,
+              })}
+              {cropMarks?.enabled && (
+                <div
+                  style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
+                  dangerouslySetInnerHTML={{
+                    __html: sanitizeSvg(
+                      generateCropMarksSvg({
+                        widthMm: currentTemplate.dimensions.widthMm,
+                        heightMm: currentTemplate.dimensions.heightMm,
+                        grid: currentTemplate.grid,
+                        settings: cropMarks,
+                      })
+                    ),
+                  }}
+                />
+              )}
+            </div>
+          ) : (
+            (() => {
+              const copies = Math.max(1, Number(formData._thermalCopies ?? 1));
+              return Array.from({ length: copies }, (_, i) => (
+                <div
+                  key={`print-page-${i}`}
+                  className="print-page"
+                  style={{
+                    position: 'relative',
+                    width: `${currentTemplate.dimensions.widthMm}mm`,
+                    height: `${currentTemplate.dimensions.heightMm}mm`,
+                    overflow: 'hidden',
+                  }}
+                >
+                  {currentTemplate.render({
+                    data: formData,
+                    offset: offset,
+                    isPreview: false,
+                    copyIndex: i + 1,
+                    copyTotal: copies,
+                    hideSingleCopy: formData._hideSingleCopy !== false,
+                  })}
+                  {cropMarks?.enabled && (
+                    <div
+                      style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
+                      dangerouslySetInnerHTML={{
+                        __html: sanitizeSvg(
+                          generateCropMarksSvg({
+                            widthMm: currentTemplate.dimensions.widthMm,
+                            heightMm: currentTemplate.dimensions.heightMm,
+                            grid: currentTemplate.grid,
+                            settings: cropMarks,
+                          })
+                        ),
+                      }}
+                    />
+                  )}
+                </div>
+              ));
+            })()
+          )
         )}
       </div>
 
@@ -278,7 +465,6 @@ export const App: React.FC = () => {
             toastState.isExiting ? 'toast-hidden' : 'toast-visible'
           }`}
         >
-          <span className="w-1.5 h-1.5 rounded-full bg-[#3a86ff] shrink-0" aria-hidden="true" />
           <span>{toastState.message}</span>
         </div>
       )}

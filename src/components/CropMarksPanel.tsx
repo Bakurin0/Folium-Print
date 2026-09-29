@@ -34,7 +34,7 @@ export const CropMarksPanel: React.FC<CropMarksPanelProps> = ({
         <div className="flex items-center gap-1.5">
           <Scissors className="w-4 h-4 text-pastel-violet-text" strokeWidth={2} />
           <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground-primary">
-            Marcas de Corte (CorelDRAW)
+            Marcas de Corte
           </h3>
         </div>
         <label className="relative inline-flex items-center cursor-pointer">

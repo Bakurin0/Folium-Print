@@ -6,16 +6,20 @@ interface SheetGridOptionsProps {
   grid: TemplateGrid;
   copies: number;
   startPosition: number;
+  hideSingleCopy?: boolean;
   onChangeCopies: (copies: number) => void;
   onChangeStartPosition: (start: number) => void;
+  onChangeHideSingleCopy?: (hide: boolean) => void;
 }
 
 export const SheetGridOptions: React.FC<SheetGridOptionsProps> = ({
   grid,
   copies,
   startPosition,
+  hideSingleCopy = true,
   onChangeCopies,
   onChangeStartPosition,
+  onChangeHideSingleCopy,
 }) => {
   const totalSlots = grid.rows * grid.cols;
   const endPosition = Math.min(totalSlots, startPosition + copies);
@@ -111,6 +115,20 @@ export const SheetGridOptions: React.FC<SheetGridOptionsProps> = ({
           })}
         </div>
       </div>
+
+      {onChangeHideSingleCopy && (
+        <label className="flex items-center gap-2 pt-1 border-t border-border/60 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={hideSingleCopy}
+            onChange={(e) => onChangeHideSingleCopy(e.target.checked)}
+            className="rounded border-border text-[#111111] focus:ring-[#111111] w-3.5 h-3.5"
+          />
+          <span className="text-[11px] text-foreground-secondary leading-tight">
+            Ocultar identificador de volume se for apenas 1 cópia
+          </span>
+        </label>
+      )}
     </div>
   );
 };

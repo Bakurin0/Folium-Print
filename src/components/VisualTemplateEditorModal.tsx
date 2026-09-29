@@ -11,11 +11,19 @@ import {
   Upload,
   Ruler,
   Sliders,
-  Move,
+  Download,
+  FileUp,
+  ChevronDown,
+  CheckCircle2,
+  Copy,
+  Lock,
+  Unlock,
 } from 'lucide-react';
 import { BarcodeSvg, QRCodeSvg } from './CodeRenderer';
 import { MM_TO_PX } from '../utils/units';
 import { sanitizeSvg } from '../utils/sanitizeSvg';
+import { exportTemplateAsFile, importTemplateFromFile, ExportFormat } from '../utils/templateFileIO';
+import { resolveCopyTokens } from '../utils/paginationTokens';
 
 interface VisualTemplateEditorModalProps {
   isOpen: boolean;
@@ -41,9 +49,26 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
   const [fields, setFields] = useState<TemplateField[]>([]);
   const [selectedFieldKey, setSelectedFieldKey] = useState<string | null>(null);
 
+  // Export & Import states
+  const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
+
   // Dragging state
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ mouseX: number; mouseY: number; initX: number; initY: number } | null>(null);
+
+  // Resizing state (8 alças completas)
+  const [resizing, setResizing] = useState<{
+    handle: 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
+    mouseX: number;
+    mouseY: number;
+    initX: number;
+    initY: number;
+    initW: number;
+    initH: number;
+    initFontSize: number;
+  } | null>(null);
 
   // Canvas zoom
   const [canvasZoom, setCanvasZoom] = useState(2.0); // 200% for easy editing
@@ -189,6 +214,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
   const handleBoxPointerDown = (e: React.PointerEvent<HTMLDivElement>, field: TemplateField) => {
     e.stopPropagation();
     setSelectedFieldKey(field.key);
+    if (field.locked) return; // Caixa bloqueada não pode ser movida
     setIsDragging(true);
     setDragStart({
       mouseX: e.clientX,
@@ -227,6 +253,115 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
     setDragStart(null);
   };
 
+  // Direct Manipulation: Resize Handles (8 alças completas com bloqueio de proporção e limite)
+  const handleResizePointerDown = (
+    e: React.PointerEvent<HTMLDivElement>,
+    handle: 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w',
+    field: TemplateField
+  ) => {
+    e.stopPropagation();
+    setSelectedFieldKey(field.key);
+    if (field.locked) return; // Caixa bloqueada não pode ser redimensionada
+    setResizing({
+      handle,
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      initX: field.xMm ?? 0,
+      initY: field.yMm ?? 0,
+      initW: field.widthMm ?? 30,
+      initH: field.heightMm ?? 10,
+      initFontSize: field.fontSizePt ?? 9,
+    });
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handleResizePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!resizing || !selectedFieldKey) return;
+
+      const deltaPixelX = e.clientX - resizing.mouseX;
+      const deltaPixelY = e.clientY - resizing.mouseY;
+
+      const deltaMmX = deltaPixelX / (MM_TO_PX * canvasZoom);
+      const deltaMmY = deltaPixelY / (MM_TO_PX * canvasZoom);
+
+      const { initX, initY, initW, initH, initFontSize, handle } = resizing;
+
+      let newX = initX;
+      let newY = initY;
+      let newW = initW;
+      let newH = initH;
+
+      const minW = 5;
+      const minH = 4;
+
+      // Redimensionamento horizontal
+      if (handle.includes('e')) {
+        newW = Math.max(minW, Math.min(widthMm - initX, initW + deltaMmX));
+      } else if (handle.includes('w')) {
+        const candidateW = Math.max(minW, initW - deltaMmX);
+        const candidateX = initX + (initW - candidateW);
+        if (candidateX >= 0) {
+          newW = candidateW;
+          newX = candidateX;
+        }
+      }
+
+      // Redimensionamento vertical
+      if (handle.includes('s')) {
+        newH = Math.max(minH, Math.min(heightMm - initY, initH + deltaMmY));
+      } else if (handle.includes('n')) {
+        const candidateH = Math.max(minH, initH - deltaMmY);
+        const candidateY = initY + (initH - candidateH);
+        if (candidateY >= 0) {
+          newH = candidateH;
+          newY = candidateY;
+        }
+      }
+
+      // Encaixe suave a cada 0.5 mm
+      newX = Math.round(newX * 2) / 2;
+      newY = Math.round(newY * 2) / 2;
+      newW = Math.round(newW * 2) / 2;
+      newH = Math.round(newH * 2) / 2;
+
+      // Ajuste proporcional controlado da fonte (com teto baseado na altura real da caixa para nunca vazar)
+      const targetField = fields.find((f) => f.key === selectedFieldKey);
+      let calculatedFontSizePt: number | undefined = undefined;
+      if (
+        targetField &&
+        targetField.autoScaleFont !== false &&
+        targetField.type !== 'barcode' &&
+        targetField.type !== 'qrcode' &&
+        targetField.type !== 'svg'
+      ) {
+        const ratio = newH / initH;
+        if (initFontSize > 0) {
+          // Altura em pontos: 1mm ≈ 2.83pt. O teto absoluto de uma linha de texto deve ser ~70% da altura da caixa em mm convertido para pt
+          const maxHeightPt = Math.floor(newH * 2.83 * 0.75);
+          const scaledPt = Math.round(initFontSize * ratio * 2) / 2;
+          calculatedFontSizePt = Math.max(5, Math.min(maxHeightPt, scaledPt));
+        }
+      }
+
+      handleUpdateField(selectedFieldKey, {
+        xMm: newX,
+        yMm: newY,
+        widthMm: newW,
+        heightMm: newH,
+        ...(calculatedFontSizePt ? { fontSizePt: calculatedFontSizePt } : {}),
+      });
+    },
+    [resizing, selectedFieldKey, canvasZoom, widthMm, heightMm, fields]
+  );
+
+  const handleResizePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    setResizing(null);
+  };
+
   // SVG File Upload
   const handleSvgFileUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'background' | 'field') => {
     const file = e.target.files?.[0];
@@ -244,14 +379,12 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
     reader.readAsText(file);
   };
 
-  // Save Template
-  const handleSave = () => {
-    if (!name.trim()) return;
-
+  // Gerar definição atual do modelo
+  const getCurrentTemplateDef = useCallback((): CustomTemplateDefinition => {
     const id = initialTemplate?.id || `custom-${Date.now()}`;
-    const def: CustomTemplateDefinition = {
+    return {
       id,
-      name: name.trim(),
+      name: name.trim() || 'Modelo Personalizado',
       category: category,
       description: `Modelo ${widthMm}x${heightMm} mm com ${fields.length} caixas posicionadas`,
       dimensions: {
@@ -263,7 +396,47 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
       backgroundSvg: backgroundSvg.trim() || undefined,
       isCustom: true,
     };
+  }, [initialTemplate, name, category, widthMm, heightMm, fields, backgroundSvg]);
 
+  // Exportar modelo em arquivo (.folium, .json ou .html)
+  const handleExport = (format: ExportFormat) => {
+    const currentDef = getCurrentTemplateDef();
+    exportTemplateAsFile(currentDef, format);
+    setIsExportDropdownOpen(false);
+  };
+
+  // Importar modelo de arquivo (.folium, .json, .svg ou .html)
+  const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const result = await importTemplateFromFile(file);
+    if (!result.success || !result.data) {
+      alert(result.error || 'Erro ao importar arquivo.');
+      e.target.value = '';
+      return;
+    }
+
+    const { data } = result;
+    if (data.name) setName(data.name);
+    if (data.category) setCategory(data.category === 'document' ? 'document' : 'thermal');
+    if (data.dimensions?.widthMm) setWidthMm(data.dimensions.widthMm);
+    if (data.dimensions?.heightMm) setHeightMm(data.dimensions.heightMm);
+    if (data.backgroundSvg !== undefined) setBackgroundSvg(data.backgroundSvg);
+    if (data.fields && Array.isArray(data.fields)) {
+      setFields(data.fields);
+      setSelectedFieldKey(data.fields[0]?.key || null);
+    }
+
+    setImportStatus(`"${file.name}" importado com sucesso!`);
+    setTimeout(() => setImportStatus(null), 4000);
+    e.target.value = '';
+  };
+
+  // Save Template
+  const handleSave = () => {
+    if (!name.trim()) return;
+    const def = getCurrentTemplateDef();
     onSave(def);
     onClose();
   };
@@ -282,58 +455,75 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
         onClick={(e) => e.stopPropagation()}
         className="bg-surface-card border border-border rounded-[8px] shadow-subtle w-full h-[95vh] max-w-6xl flex flex-col overflow-hidden animate-modal-enter"
       >
-        {/* Top Header & Actions Bar */}
-        <div className="h-13 px-4 border-b border-border bg-surface-card flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-[6px] border border-border bg-surface-subtle flex items-center justify-center text-foreground-primary">
-              <Ruler className="w-4 h-4 text-foreground-primary" strokeWidth={1.8} aria-hidden="true" />
+        {/* Top Header & Actions Bar (Linha Única Perfeita Apple HIG) */}
+        <div className="h-13 px-3 sm:px-4 border-b border-border bg-surface-card flex items-center justify-between gap-2.5 shrink-0 select-none">
+          {/* Lado Esquerdo: Ícone e Títulos */}
+          <div className="flex items-center gap-2 min-w-0 shrink-0">
+            <div className="w-7.5 h-7.5 rounded-[6px] border border-border bg-surface-subtle flex items-center justify-center text-foreground-primary shrink-0">
+              <Ruler className="w-3.5 h-3.5 text-foreground-secondary" strokeWidth={1.8} aria-hidden="true" />
             </div>
-            <div>
-              <h2 id="visual-editor-title" className="text-xs font-semibold tracking-tight text-foreground-primary">
-                Editor Visual de Etiquetas & SVG
+            <div className="min-w-0">
+              <h2 id="visual-editor-title" className="text-xs font-semibold tracking-tight text-foreground-primary whitespace-nowrap">
+                Editor Visual de Etiquetas
               </h2>
-              <span className="text-[11px] text-foreground-muted">
-                Posicionamento milimétrico exato e vetores para impressão física
+              <span className="text-[10px] text-foreground-muted whitespace-nowrap hidden xl:block">
+                Milimétrico & Vetorial
               </span>
             </div>
           </div>
 
-          {/* Quick Add Elements Toolbar with Spot Colors & Tactile Buttons */}
-          <div className="flex items-center gap-1 bg-surface-subtle p-0.5 rounded-[6px] border border-border">
+          {/* Centro: Barra Tátil de Elementos Rápidos */}
+          <div className="flex items-center gap-0.5 bg-surface-subtle p-0.5 rounded-[7px] border border-border/80 shrink-0">
             <button
               type="button"
               onClick={() => handleAddField('text')}
-              className="btn-tactile px-2 py-1 text-xs font-medium text-foreground-primary hover:bg-surface-card rounded-[4px] flex items-center gap-1.5"
+              className="btn-tactile h-7 px-2 text-[11px] font-medium text-foreground-primary hover:bg-surface-card rounded-[5px] flex items-center gap-1.5 whitespace-nowrap active:scale-[0.96] transition-all group"
             >
-              <Type className="w-3.5 h-3.5 text-foreground-muted" strokeWidth={1.8} />
-              <span>+ Texto</span>
+              <Type className="w-3.5 h-3.5 text-foreground-muted group-hover:text-foreground-primary shrink-0 transition-colors" strokeWidth={1.8} />
+              <span>Texto</span>
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                handleAddField('text', {
+                  label: 'Volume',
+                  defaultValue: '{copia}/{total}',
+                  showLabel: true,
+                  textAlign: 'right',
+                  fontWeight: 'bold',
+                  widthMm: Math.min(widthMm - 10, 32),
+                  heightMm: 6,
+                })
+              }
+              className="btn-tactile h-7 px-2 text-[11px] font-medium text-foreground-primary hover:bg-surface-card rounded-[5px] flex items-center gap-1.5 whitespace-nowrap active:scale-[0.96] transition-all group"
+              title="Adicionar campo com identificador de cópias/volumes ({copia}/{total})"
+            >
+              <Copy className="w-3.5 h-3.5 text-foreground-muted group-hover:text-foreground-primary shrink-0 transition-colors" strokeWidth={1.8} />
+              <span>Volume</span>
             </button>
             <button
               type="button"
               onClick={() => handleAddField('barcode', { barcodeFormat: 'CODE128' })}
-              className="btn-tactile px-2 py-1 text-xs font-medium text-foreground-primary hover:bg-surface-card rounded-[4px] flex items-center gap-1.5"
+              className="btn-tactile h-7 px-2 text-[11px] font-medium text-foreground-primary hover:bg-surface-card rounded-[5px] flex items-center gap-1.5 whitespace-nowrap active:scale-[0.96] transition-all group"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-azure-blue" />
-              <Barcode className="w-3.5 h-3.5 text-foreground-muted" strokeWidth={1.8} />
-              <span>+ Code 128</span>
+              <Barcode className="w-3.5 h-3.5 text-foreground-muted group-hover:text-foreground-primary shrink-0 transition-colors" strokeWidth={1.8} />
+              <span>Code 128</span>
             </button>
             <button
               type="button"
               onClick={() => handleAddField('barcode', { barcodeFormat: 'EAN13', defaultValue: '7891000100103' })}
-              className="btn-tactile px-2 py-1 text-xs font-medium text-foreground-primary hover:bg-surface-card rounded-[4px] flex items-center gap-1.5"
+              className="btn-tactile h-7 px-2 text-[11px] font-medium text-foreground-primary hover:bg-surface-card rounded-[5px] flex items-center gap-1.5 whitespace-nowrap active:scale-[0.96] transition-all group"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-gold" />
-              <Barcode className="w-3.5 h-3.5 text-foreground-muted" strokeWidth={1.8} />
-              <span>+ EAN-13</span>
+              <Barcode className="w-3.5 h-3.5 text-foreground-muted group-hover:text-foreground-primary shrink-0 transition-colors" strokeWidth={1.8} />
+              <span>EAN-13</span>
             </button>
             <button
               type="button"
               onClick={() => handleAddField('qrcode')}
-              className="btn-tactile px-2 py-1 text-xs font-medium text-foreground-primary hover:bg-surface-card rounded-[4px] flex items-center gap-1.5"
+              className="btn-tactile h-7 px-2 text-[11px] font-medium text-foreground-primary hover:bg-surface-card rounded-[5px] flex items-center gap-1.5 whitespace-nowrap active:scale-[0.96] transition-all group"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-neon-pink" />
-              <QrCode className="w-3.5 h-3.5 text-foreground-muted" strokeWidth={1.8} />
-              <span>+ QR Code</span>
+              <QrCode className="w-3.5 h-3.5 text-foreground-muted group-hover:text-foreground-primary shrink-0 transition-colors" strokeWidth={1.8} />
+              <span>QR Code</span>
             </button>
             <button
               type="button"
@@ -343,29 +533,115 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                   svgContent: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" fill="none" stroke="black" stroke-width="6"/><path d="M30 50 L45 65 L70 35" stroke="black" stroke-width="6" fill="none"/></svg>`,
                 })
               }
-              className="btn-tactile px-2 py-1 text-xs font-medium text-foreground-primary hover:bg-surface-card rounded-[4px] flex items-center gap-1.5"
+              className="btn-tactile h-7 px-2 text-[11px] font-medium text-foreground-primary hover:bg-surface-card rounded-[5px] flex items-center gap-1.5 whitespace-nowrap active:scale-[0.96] transition-all group"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-violet" />
-              <FileCode className="w-3.5 h-3.5 text-foreground-muted" strokeWidth={1.8} />
-              <span>+ SVG</span>
+              <FileCode className="w-3.5 h-3.5 text-foreground-muted group-hover:text-foreground-primary shrink-0 transition-colors" strokeWidth={1.8} />
+              <span>SVG</span>
             </button>
           </div>
 
-          {/* Right Header Buttons */}
-          <div className="flex items-center gap-2">
+          {/* Lado Direito: Importar, Exportar, Salvar e Fechar */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Input Oculto de Arquivo */}
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".folium,.json,.svg,.html,.htm"
+              onChange={handleFileImport}
+              className="hidden"
+            />
+
+            {/* Status temporário de importação */}
+            {importStatus && (
+              <div className="hidden 2xl:flex items-center gap-1.5 px-2 py-0.5 rounded-[5px] bg-[#15803d]/10 border border-[#15803d]/20 text-[#15803d] text-[10.5px] font-medium animate-fadeIn whitespace-nowrap">
+                <CheckCircle2 className="w-3 h-3 shrink-0" />
+                <span className="truncate max-w-[140px]">{importStatus}</span>
+              </div>
+            )}
+
+            {/* Botão Importar */}
+            <button
+              type="button"
+              onClick={() => importInputRef.current?.click()}
+              className="btn-tactile h-7.5 bg-surface-subtle hover:bg-surface-card text-foreground-primary text-xs font-medium px-2 rounded-[6px] border border-border flex items-center gap-1.5 whitespace-nowrap active:scale-[0.97] transition-transform duration-instant"
+              title="Importar modelo (.folium, .json, .svg, .html)"
+            >
+              <FileUp className="w-3.5 h-3.5 text-foreground-secondary shrink-0" strokeWidth={1.8} />
+              <span className="hidden md:inline">Importar</span>
+            </button>
+
+            {/* Botão Exportar com Dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsExportDropdownOpen((prev) => !prev)}
+                className="btn-tactile h-7.5 bg-surface-subtle hover:bg-surface-card text-foreground-primary text-xs font-medium px-2 rounded-[6px] border border-border flex items-center gap-1 whitespace-nowrap active:scale-[0.97] transition-transform duration-instant"
+                title="Exportar modelo"
+                aria-expanded={isExportDropdownOpen}
+              >
+                <Download className="w-3.5 h-3.5 text-foreground-secondary shrink-0" strokeWidth={1.8} />
+                <span className="hidden md:inline">Exportar</span>
+                <ChevronDown className="w-3 h-3 text-foreground-muted shrink-0" />
+              </button>
+
+              {isExportDropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-30"
+                    onClick={() => setIsExportDropdownOpen(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-1.5 w-48 apple-glass border border-black/[0.08] rounded-[8px] shadow-lg p-1 z-40 animate-modal-enter origin-top-right text-left">
+                    <div className="px-2 py-1 text-[9.5px] font-semibold text-foreground-muted uppercase tracking-wider">
+                      Exportar arquivo
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleExport('folium')}
+                      className="btn-tactile w-full px-2 py-1.5 text-left rounded-[5px] hover:bg-black/[0.04] text-xs font-medium flex items-center justify-between text-foreground-primary"
+                    >
+                      <span>Modelo Folium</span>
+                      <span className="text-[10px] font-mono text-foreground-muted font-normal">.folium</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleExport('json')}
+                      className="btn-tactile w-full px-2 py-1.5 text-left rounded-[5px] hover:bg-black/[0.04] text-xs font-medium flex items-center justify-between text-foreground-primary"
+                    >
+                      <span>Arquivo JSON</span>
+                      <span className="text-[10px] font-mono text-foreground-muted font-normal">.json</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleExport('html')}
+                      className="btn-tactile w-full px-2 py-1.5 text-left rounded-[5px] hover:bg-black/[0.04] text-xs font-medium flex items-center justify-between text-foreground-primary"
+                    >
+                      <span>HTML Imprimível</span>
+                      <span className="text-[10px] font-mono text-foreground-muted font-normal">.html</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="h-4 w-[1px] bg-border mx-0.5 shrink-0" aria-hidden="true" />
+
             <button
               type="button"
               onClick={handleSave}
-              className="btn-tactile bg-[#111111] hover:bg-[#27272a] text-white text-xs font-medium px-3 py-1.5 rounded-[6px] border border-[#111111] flex items-center gap-1.5 shadow-xs"
+              className="btn-tactile h-7.5 bg-[#111111] hover:bg-[#27272a] text-white text-xs font-medium px-2.5 rounded-[6px] border border-[#111111] flex items-center gap-1.5 whitespace-nowrap shadow-xs active:scale-95 transition-all shrink-0"
             >
-              <Save className="w-3.5 h-3.5 text-white/90" strokeWidth={1.8} />
-              <span>Salvar Modelo</span>
+              <Save className="w-3.5 h-3.5 text-white/90 shrink-0" strokeWidth={1.8} />
+              <span>Salvar</span>
             </button>
+
+            {/* Divisória de segurança antes do botão fechar */}
+            <div className="h-4 w-[1px] bg-border mx-0.5 shrink-0" aria-hidden="true" />
+
             <button
               type="button"
               onClick={onClose}
-              className="btn-tactile text-foreground-muted hover:text-foreground-primary p-1.5 rounded-[4px] hover:bg-surface-subtle"
-              title="Fechar (Esc)"
+              className="btn-tactile h-7.5 w-7.5 flex items-center justify-center text-foreground-muted hover:text-foreground-primary rounded-[6px] hover:bg-black/5 active:scale-90 transition-all shrink-0"
+              title="Fechar editor (Esc)"
               aria-label="Fechar editor visual (Esc)"
             >
               <X className="w-4 h-4" strokeWidth={1.8} aria-hidden="true" />
@@ -383,25 +659,25 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                 <span className="font-mono font-bold text-foreground-primary">
                   {widthMm} × {heightMm} mm
                 </span>
-                <span>• Arraste as caixas com o mouse para posicionar</span>
+                <span className="text-[11px]">• Arraste as caixas com o mouse para posicionar</span>
               </div>
-              <div className="flex items-center gap-1 font-mono">
+              <div className="flex items-center gap-1.5 font-mono">
                 <button
                   type="button"
                   onClick={() => setCanvasZoom((z) => Math.max(1.0, z - 0.25))}
-                  className="px-2 py-0.5 rounded bg-surface-subtle hover:bg-border/60"
+                  className="btn-tactile w-6 h-6 rounded-[5px] bg-white border border-black/[0.08] shadow-2xs hover:bg-black/[0.03] flex items-center justify-center text-foreground-primary font-medium text-xs transition-colors"
                   title="Diminuir zoom"
                   aria-label="Diminuir zoom"
                 >
                   -
                 </button>
-                <span className="px-1 text-foreground-secondary" aria-label={`Zoom atual: ${Math.round(canvasZoom * 100)}%`}>
+                <span className="px-1.5 text-xs text-foreground-primary font-semibold min-w-[42px] text-center" aria-label={`Zoom atual: ${Math.round(canvasZoom * 100)}%`}>
                   {Math.round(canvasZoom * 100)}%
                 </span>
                 <button
                   type="button"
                   onClick={() => setCanvasZoom((z) => Math.min(3.5, z + 0.25))}
-                  className="px-2 py-0.5 rounded bg-surface-subtle hover:bg-border/60"
+                  className="btn-tactile w-6 h-6 rounded-[5px] bg-white border border-black/[0.08] shadow-2xs hover:bg-black/[0.03] flex items-center justify-center text-foreground-primary font-medium text-xs transition-colors"
                   title="Aumentar zoom"
                   aria-label="Aumentar zoom"
                 >
@@ -411,7 +687,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
             </div>
 
             {/* Visual Workspace Canvas */}
-            <div className="flex-1 overflow-auto p-8 flex items-center justify-center">
+            <div className="flex-1 overflow-auto p-12 flex items-center justify-center">
               <div
                 ref={canvasRef}
                 style={{
@@ -419,32 +695,42 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                   height: `${heightMm * MM_TO_PX * canvasZoom}px`,
                   backgroundColor: '#ffffff',
                 }}
-                className="relative shadow-2xl border border-black/20 select-none overflow-hidden transition-[width,height] duration-snappy ease-out"
+                className="relative shadow-2xl border border-black/15 select-none overflow-visible transition-[width,height] duration-snappy ease-out rounded-[2px]"
                 onClick={(e) => {
                   if (e.target === e.currentTarget) {
                     setSelectedFieldKey(null);
                   }
                 }}
               >
-                {/* Background Millimeter Grid Lines Pattern */}
-                <div
-                  className="absolute inset-0 pointer-events-none opacity-20"
-                  style={{
-                    backgroundImage: `
-                      linear-gradient(to right, #000 1px, transparent 1px),
-                      linear-gradient(to bottom, #000 1px, transparent 1px)
-                    `,
-                    backgroundSize: `${10 * MM_TO_PX * canvasZoom}px ${10 * MM_TO_PX * canvasZoom}px`,
-                  }}
-                />
-
-                {/* Background SVG if configured */}
-                {backgroundSvg && (
+                {/* Camada Interna de Contenção de Fundo (Grid e SVG) */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-[2px]">
+                  {/* Background Millimeter Grid (Hierárquico: 2mm sutil + 10mm mestre) */}
                   <div
-                    className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center opacity-80"
-                    dangerouslySetInnerHTML={{ __html: sanitizeSvg(backgroundSvg) }}
+                    className="absolute inset-0"
+                    style={{
+                      backgroundImage: `
+                        linear-gradient(to right, rgba(0,0,0,0.025) 1px, transparent 1px),
+                        linear-gradient(to bottom, rgba(0,0,0,0.025) 1px, transparent 1px),
+                        linear-gradient(to right, rgba(0,0,0,0.08) 1px, transparent 1px),
+                        linear-gradient(to bottom, rgba(0,0,0,0.08) 1px, transparent 1px)
+                      `,
+                      backgroundSize: `
+                        ${2 * MM_TO_PX * canvasZoom}px ${2 * MM_TO_PX * canvasZoom}px,
+                        ${2 * MM_TO_PX * canvasZoom}px ${2 * MM_TO_PX * canvasZoom}px,
+                        ${10 * MM_TO_PX * canvasZoom}px ${10 * MM_TO_PX * canvasZoom}px,
+                        ${10 * MM_TO_PX * canvasZoom}px ${10 * MM_TO_PX * canvasZoom}px
+                      `,
+                    }}
                   />
-                )}
+
+                  {/* Background SVG if configured */}
+                  {backgroundSvg && (
+                    <div
+                      className="absolute inset-0 overflow-hidden flex items-center justify-center opacity-80"
+                      dangerouslySetInnerHTML={{ __html: sanitizeSvg(backgroundSvg) }}
+                    />
+                  )}
+                </div>
 
                 {/* Dynamic Draggable Boxes */}
                 {fields.map((field) => {
@@ -453,6 +739,9 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                   const yPx = (field.yMm ?? 0) * MM_TO_PX * canvasZoom;
                   const wPx = (field.widthMm ?? 30) * MM_TO_PX * canvasZoom;
                   const hPx = (field.heightMm ?? 10) * MM_TO_PX * canvasZoom;
+
+                  const vAlign = field.verticalAlign || ((field.heightMm ?? 8) >= 14 ? 'top' : 'middle');
+                  const justifyClass = vAlign === 'top' ? 'justify-start pt-1' : vAlign === 'bottom' ? 'justify-end pb-1' : 'justify-center';
 
                   return (
                     <div
@@ -473,63 +762,90 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                         height: `${hPx}px`,
                         cursor: isDragging && isSelected ? 'grabbing' : 'grab',
                       }}
-                      className={`group touch-none flex flex-col justify-center overflow-hidden p-0.5 select-none ${
+                      className={`group touch-none flex flex-col ${justifyClass} px-1.5 py-0.5 select-none relative transition-colors duration-instant ${
                         isSelected
-                          ? 'ring-2 ring-primary ring-offset-2 bg-primary/15 shadow-xl z-30'
-                          : 'border border-dashed border-gray-400 hover:border-primary hover:bg-primary/5 z-10'
+                          ? 'border-[1.5px] border-[#3a86ff] z-30 shadow-xs'
+                          : field.showBorder
+                          ? 'border border-black/60 z-10'
+                          : 'border border-transparent hover:border-[#3a86ff]/40 hover:bg-[#3a86ff]/[0.015] z-10'
                       }`}
                     >
-                      {/* Box Selection Badge */}
+                      {/* Box Dimension & Coordinate Badge (Com inversão inteligente se encostar no topo) */}
                       {isSelected && (
-                        <div className="absolute top-0 right-0 bg-primary text-white text-[7px] font-mono px-1 rounded-bl shadow-xs pointer-events-none z-30">
-                          Selecionada
-                        </div>
-                      )}
-
-                      {/* Box Drag Indicator Badge */}
-                      <div className="absolute top-0.5 left-0.5 bg-black/70 text-white text-[7px] font-mono px-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none flex items-center gap-0.5">
-                        <Move className="w-2 h-2" />
-                        <span>{field.xMm}×{field.yMm}mm</span>
-                      </div>
-
-                      {/* Box Content Preview */}
-                      {field.type === 'svg' ? (
                         <div
-                          className="w-full h-full flex items-center justify-center overflow-hidden pointer-events-none"
-                          dangerouslySetInnerHTML={{ __html: sanitizeSvg(field.svgContent || '<svg></svg>') }}
-                        />
-                      ) : field.type === 'qrcode' ? (
-                        <div className="w-full h-full flex items-center justify-center overflow-hidden pointer-events-none">
-                          <QRCodeSvg value={String(field.defaultValue || '00000')} size={Math.min(wPx, hPx) * 0.9} />
-                        </div>
-                      ) : field.type === 'barcode' ? (
-                        <div className="w-full h-full flex items-center justify-center overflow-hidden pointer-events-none">
-                          <BarcodeSvg
-                            value={String(field.defaultValue || '123456')}
-                            format={field.barcodeFormat || 'CODE128'}
-                            height={Math.max(12, hPx * 0.7)}
-                            width={1.2 * canvasZoom}
-                            displayValue={true}
-                            fontSize={7 * canvasZoom}
-                          />
-                        </div>
-                      ) : (
-                        <div
-                          style={{
-                            textAlign: field.textAlign || 'left',
-                            fontSize: `${(field.fontSizePt || 8.5) * canvasZoom * 0.9}px`,
-                            fontWeight: field.fontWeight === 'bolder' ? 900 : field.fontWeight === 'bold' ? 700 : 400,
-                          }}
-                          className="w-full truncate text-black pointer-events-none"
+                          className={`absolute left-1/2 -translate-x-1/2 bg-[#111111] text-white font-mono text-[9px] px-2 py-0.5 rounded-[5px] shadow-subtle flex items-center gap-1.5 whitespace-nowrap pointer-events-none z-50 transition-all ${
+                            (field.yMm ?? 0) < 7 ? 'top-full mt-2.5' : '-top-7'
+                          }`}
                         >
-                          {field.showLabel && (
-                            <span className="text-gray-500 font-bold mr-1 text-[80%] uppercase">
-                              {field.label}:
-                            </span>
-                          )}
-                          <span>{String(field.defaultValue || field.label)}</span>
+                          {field.locked && <Lock className="w-2.5 h-2.5 text-[#ef4444]" />}
+                          <span className="font-semibold text-white">{field.widthMm} × {field.heightMm} mm</span>
+                          <span className="text-white/60 text-[8px]">({field.xMm}, {field.yMm})</span>
                         </div>
                       )}
+
+                      {/* 8 Alças de Redimensionamento Interativas (Cantos + Bordas) - Omitidas se a caixa for bloqueada */}
+                      {isSelected && !field.locked && [
+                        { handle: 'nw' as const, className: 'top-0 left-0 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize' },
+                        { handle: 'n' as const, className: 'top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 cursor-ns-resize' },
+                        { handle: 'ne' as const, className: 'top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-nesw-resize' },
+                        { handle: 'e' as const, className: 'top-1/2 right-0 translate-x-1/2 -translate-y-1/2 cursor-ew-resize' },
+                        { handle: 'se' as const, className: 'bottom-0 right-0 translate-x-1/2 translate-y-1/2 cursor-nwse-resize' },
+                        { handle: 's' as const, className: 'bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 cursor-ns-resize' },
+                        { handle: 'sw' as const, className: 'bottom-0 left-0 -translate-x-1/2 translate-y-1/2 cursor-nesw-resize' },
+                        { handle: 'w' as const, className: 'top-1/2 left-0 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize' },
+                      ].map(({ handle, className }) => (
+                        <div
+                          key={handle}
+                          onPointerDown={(e) => handleResizePointerDown(e, handle, field)}
+                          onPointerMove={handleResizePointerMove}
+                          onPointerUp={handleResizePointerUp}
+                          onPointerCancel={handleResizePointerUp}
+                          className={`absolute w-2 h-2 bg-white border-[1.5px] border-[#3a86ff] rounded-[2px] shadow-xs z-40 hover:scale-125 transition-transform duration-instant ease-out ${className}`}
+                        />
+                      ))}
+
+                      {/* Box Content Preview encapsulado em container com corte perfeito */}
+                      <div className={`absolute inset-0 overflow-hidden pointer-events-none flex flex-col ${justifyClass} px-1.5 py-0.5 rounded-[1px]`}>
+                        {field.type === 'svg' ? (
+                          <div
+                            className="w-full h-full flex items-center justify-center overflow-hidden"
+                            dangerouslySetInnerHTML={{ __html: sanitizeSvg(field.svgContent || '<svg></svg>') }}
+                          />
+                        ) : field.type === 'qrcode' ? (
+                          <div className="w-full h-full flex items-center justify-center overflow-hidden">
+                            <QRCodeSvg value={String(field.defaultValue || '00000')} size={Math.min(wPx, hPx) * 0.9} />
+                          </div>
+                        ) : field.type === 'barcode' ? (
+                          <div className="w-full h-full flex items-center justify-center overflow-hidden">
+                            <BarcodeSvg
+                              value={String(field.defaultValue || '123456')}
+                              format={field.barcodeFormat || 'CODE128'}
+                              height={Math.max(12, hPx * 0.7)}
+                              width={1.2 * canvasZoom}
+                              displayValue={true}
+                              fontSize={7 * canvasZoom}
+                            />
+                          </div>
+                        ) : (
+                          <div
+                            style={{
+                              textAlign: field.textAlign || 'left',
+                              fontSize: `${(field.fontSizePt || 8.5) * canvasZoom * 0.9}px`,
+                              fontWeight: field.fontWeight === 'bolder' ? 900 : field.fontWeight === 'bold' ? 700 : 400,
+                            }}
+                            className="w-full max-h-full overflow-hidden break-words whitespace-pre-wrap leading-tight text-black"
+                          >
+                            {field.showLabel && (
+                              <span className="mr-1">
+                                {field.label.endsWith(':') ? field.label : `${field.label}:`}
+                              </span>
+                            )}
+                            <span>
+                              {resolveCopyTokens(String(field.defaultValue || field.label), 1, 2, false)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -542,57 +858,57 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
             {/* Template Global Settings Section */}
             <div className="p-3 border-b border-border space-y-2.5">
               <span className="text-xs font-bold uppercase tracking-wider text-foreground-secondary flex items-center gap-1.5">
-                <Sliders className="w-3.5 h-3.5 text-primary" />
+                <Sliders className="w-3.5 h-3.5 text-[#3a86ff]" />
                 <span>Dimensões Físicas</span>
               </span>
 
               <div className="space-y-1">
-                <label className="text-[11px] text-foreground-secondary">Nome do Modelo:</label>
+                <label className="text-[11px] font-medium text-foreground-primary">Nome do Modelo</label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full text-xs px-2.5 py-1.5 bg-surface-subtle border border-border rounded text-foreground-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full text-xs px-2.5 py-1.5 bg-black/[0.035] hover:bg-black/[0.05] focus:bg-white border border-border/80 focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/15 rounded-[6px] text-foreground-primary outline-none transition-colors duration-instant"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
-                  <label className="text-[10px] text-foreground-secondary block">Largura (mm):</label>
+                  <label className="text-[11px] font-medium text-foreground-primary block mb-1">Largura (mm)</label>
                   <input
                     type="number"
                     min={20}
                     max={300}
                     value={widthMm}
                     onChange={(e) => setWidthMm(Number(e.target.value))}
-                    className="w-full px-2 py-1 bg-surface-subtle border border-border rounded font-mono"
+                    className="w-full px-2 py-1.5 bg-black/[0.035] hover:bg-black/[0.05] focus:bg-white border border-border/80 focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/15 rounded-[6px] font-mono text-xs outline-none transition-colors duration-instant"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] text-foreground-secondary block">Altura (mm):</label>
+                  <label className="text-[11px] font-medium text-foreground-primary block mb-1">Altura (mm)</label>
                   <input
                     type="number"
                     min={15}
                     max={400}
                     value={heightMm}
                     onChange={(e) => setHeightMm(Number(e.target.value))}
-                    className="w-full px-2 py-1 bg-surface-subtle border border-border rounded font-mono"
+                    className="w-full px-2 py-1.5 bg-black/[0.035] hover:bg-black/[0.05] focus:bg-white border border-border/80 focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/15 rounded-[6px] font-mono text-xs outline-none transition-colors duration-instant"
                   />
                 </div>
               </div>
 
               {/* Background SVG Upload / Code */}
-              <div className="pt-2 border-t border-border/60 space-y-1">
+              <div className="pt-2 border-t border-border/60 space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-semibold text-foreground-secondary flex items-center gap-1">
-                    <FileCode className="w-3 h-3 text-blue-violet" />
-                    <span>SVG de Fundo / Moldura:</span>
+                  <label className="text-[11px] font-medium text-foreground-primary flex items-center gap-1.5">
+                    <FileCode className="w-3.5 h-3.5 text-[#8338ec]" />
+                    <span>SVG de Fundo / Moldura</span>
                   </label>
                   {backgroundSvg && (
                     <button
                       type="button"
                       onClick={() => setBackgroundSvg('')}
-                      className="text-[10px] text-feedback-error hover:underline"
+                      className="text-[10px] text-feedback-error hover:underline font-medium"
                     >
                       Remover
                     </button>
@@ -600,8 +916,8 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <label className="cursor-pointer text-[10px] bg-surface-subtle hover:bg-border/60 text-foreground-primary px-2 py-1 rounded border border-border flex items-center gap-1">
-                    <Upload className="w-3 h-3" />
+                  <label className="btn-tactile cursor-pointer text-xs bg-surface-subtle hover:bg-black/[0.04] text-foreground-primary px-2.5 py-1 rounded-[6px] border border-border flex items-center gap-1.5 transition-colors">
+                    <Upload className="w-3.5 h-3.5 text-foreground-muted" />
                     <span>Subir arquivo .svg</span>
                     <input
                       type="file"
@@ -617,7 +933,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                   value={backgroundSvg}
                   onChange={(e) => setBackgroundSvg(e.target.value)}
                   placeholder="Ou cole o código <svg> aqui..."
-                  className="w-full text-[10px] font-mono p-1.5 bg-surface-subtle border border-border rounded text-foreground-primary placeholder:text-foreground-muted"
+                  className="w-full text-[10px] font-mono p-2 bg-black/[0.035] hover:bg-black/[0.05] focus:bg-white border border-border/80 focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/15 rounded-[6px] text-foreground-primary placeholder:text-foreground-muted outline-none transition-colors duration-instant"
                 />
               </div>
             </div>
@@ -625,35 +941,61 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
             {/* Selected Box Inspector Panel */}
             <div className="p-3 flex-1 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-foreground-secondary flex items-center gap-1">
+                <span className="text-xs font-bold uppercase tracking-wider text-foreground-secondary flex items-center gap-1.5">
                   <span>Caixa Selecionada</span>
+                  {selectedField?.locked && (
+                    <span className="px-1.5 py-0.2 bg-[#ef4444]/10 text-[#ef4444] rounded text-[9.5px] font-medium flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5" />
+                      Bloqueada
+                    </span>
+                  )}
                 </span>
                 {selectedField && (
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveField(selectedField.key)}
-                    className="text-feedback-error hover:text-red-700 p-1 rounded"
-                    title="Excluir esta caixa"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateField(selectedField.key, { locked: !selectedField.locked })}
+                      className={`btn-tactile p-1.5 rounded-[5px] transition-colors ${
+                        selectedField.locked
+                          ? 'text-[#ef4444] bg-[#ef4444]/10 hover:bg-[#ef4444]/15'
+                          : 'text-foreground-secondary hover:text-foreground-primary hover:bg-black/[0.04]'
+                      }`}
+                      title={selectedField.locked ? 'Desbloquear caixa (permitir mover e dimensionar)' : 'Bloquear caixa (proteger contra movimentação e redimensionamento)'}
+                      aria-label={selectedField.locked ? 'Desbloquear caixa' : 'Bloquear caixa'}
+                    >
+                      {selectedField.locked ? (
+                        <Lock className="w-3.5 h-3.5" />
+                      ) : (
+                        <Unlock className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveField(selectedField.key)}
+                      className="btn-tactile p-1.5 rounded-[5px] text-feedback-error hover:bg-feedback-error/10 transition-colors"
+                      title="Excluir esta caixa"
+                      aria-label="Excluir esta caixa"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 )}
               </div>
 
               {/* Seletor Rápido de Caixas */}
               <div className="space-y-1">
-                <label className="text-[10px] text-foreground-secondary block">
-                  Alternar Caixa / Camada:
+                <label className="text-[11px] font-medium text-foreground-primary block">
+                  Alternar Caixa / Camada
                 </label>
                 <select
                   value={selectedFieldKey || ''}
                   onChange={(e) => setSelectedFieldKey(e.target.value || null)}
-                  className="w-full text-xs px-2 py-1.5 bg-surface-subtle border border-border rounded font-semibold text-foreground-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full text-xs px-2.5 py-1.5 bg-black/[0.035] hover:bg-black/[0.05] focus:bg-white border border-border/80 focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/15 rounded-[6px] font-medium text-foreground-primary outline-none transition-colors duration-instant"
                 >
                   <option value="">-- Selecione uma caixa --</option>
                   {fields.map((f, i) => (
                     <option key={f.key} value={f.key}>
-                      #{i + 1}: {f.label} ({f.type}) [{f.xMm}×{f.yMm}mm]
+                      #{i + 1}: {f.label} ({f.type}) {f.locked ? '🔒 [Bloqueada]' : `[${f.xMm}×${f.yMm}mm]`}
                     </option>
                   ))}
                 </select>
@@ -662,25 +1004,25 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
               {selectedField ? (
                 <div className="space-y-2.5 text-xs">
                   <div>
-                    <label className="text-[10px] text-foreground-secondary block mb-0.5">
-                      Nome / Rótulo do Campo:
+                    <label className="text-[11px] font-medium text-foreground-primary block mb-1">
+                      Nome / Rótulo do Campo
                     </label>
                     <input
                       type="text"
                       value={selectedField.label}
                       onChange={(e) => handleUpdateField(selectedField.key, { label: e.target.value })}
-                      className="w-full px-2 py-1 bg-surface-subtle border border-border rounded font-semibold text-foreground-primary"
+                      className="w-full px-2.5 py-1.5 bg-black/[0.035] hover:bg-black/[0.05] focus:bg-white border border-border/80 focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/15 rounded-[6px] text-foreground-primary outline-none transition-colors duration-instant"
                     />
                   </div>
 
                   {/* Coordenadas X e Y em mm */}
-                  <div className="p-2 bg-surface-subtle rounded border border-border/80 space-y-2">
+                  <div className="p-2.5 bg-black/[0.02] rounded-[8px] border border-border/70 space-y-2">
                     <span className="text-[10px] font-bold text-foreground-secondary uppercase tracking-wider block">
                       Posicionamento Físico (mm)
                     </span>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-[10px] text-foreground-secondary block">X (mm):</label>
+                        <label className="text-[11px] font-medium text-foreground-primary block mb-1">X (mm)</label>
                         <input
                           type="number"
                           step={0.5}
@@ -690,11 +1032,11 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                           onChange={(e) =>
                             handleUpdateField(selectedField.key, { xMm: parseFloat(e.target.value) || 0 })
                           }
-                          className="w-full px-2 py-1 bg-surface-card border border-border rounded font-mono font-bold"
+                          className="w-full px-2 py-1.5 bg-white border border-border/80 focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/15 rounded-[6px] font-mono text-xs text-foreground-primary outline-none transition-colors duration-instant"
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] text-foreground-secondary block">Y (mm):</label>
+                        <label className="text-[11px] font-medium text-foreground-primary block mb-1">Y (mm)</label>
                         <input
                           type="number"
                           step={0.5}
@@ -704,14 +1046,14 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                           onChange={(e) =>
                             handleUpdateField(selectedField.key, { yMm: parseFloat(e.target.value) || 0 })
                           }
-                          className="w-full px-2 py-1 bg-surface-card border border-border rounded font-mono font-bold"
+                          className="w-full px-2 py-1.5 bg-white border border-border/80 focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/15 rounded-[6px] font-mono text-xs text-foreground-primary outline-none transition-colors duration-instant"
                         />
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-[10px] text-foreground-secondary block">Largura (mm):</label>
+                        <label className="text-[11px] font-medium text-foreground-primary block mb-1">Largura (mm)</label>
                         <input
                           type="number"
                           step={1}
@@ -721,11 +1063,11 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                           onChange={(e) =>
                             handleUpdateField(selectedField.key, { widthMm: parseFloat(e.target.value) || 10 })
                           }
-                          className="w-full px-2 py-1 bg-surface-card border border-border rounded font-mono font-bold"
+                          className="w-full px-2 py-1.5 bg-white border border-border/80 focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/15 rounded-[6px] font-mono text-xs text-foreground-primary outline-none transition-colors duration-instant"
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] text-foreground-secondary block">Altura (mm):</label>
+                        <label className="text-[11px] font-medium text-foreground-primary block mb-1">Altura (mm)</label>
                         <input
                           type="number"
                           step={1}
@@ -735,7 +1077,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                           onChange={(e) =>
                             handleUpdateField(selectedField.key, { heightMm: parseFloat(e.target.value) || 5 })
                           }
-                          className="w-full px-2 py-1 bg-surface-card border border-border rounded font-mono font-bold"
+                          className="w-full px-2 py-1.5 bg-white border border-border/80 focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/15 rounded-[6px] font-mono text-xs text-foreground-primary outline-none transition-colors duration-instant"
                         />
                       </div>
                     </div>
@@ -743,9 +1085,9 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
 
                   {/* Configurações Tipográficas / Estilo */}
                   {selectedField.type !== 'qrcode' && selectedField.type !== 'svg' && (
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-1.5">
                       <div>
-                        <label className="text-[10px] text-foreground-secondary block">Fonte (pt):</label>
+                        <label className="text-[10.5px] font-medium text-foreground-primary block mb-1">Fonte (pt)</label>
                         <input
                           type="number"
                           step={0.5}
@@ -755,21 +1097,35 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                           onChange={(e) =>
                             handleUpdateField(selectedField.key, { fontSizePt: parseFloat(e.target.value) || 9 })
                           }
-                          className="w-full px-2 py-1 bg-surface-subtle border border-border rounded font-mono"
+                          className="w-full px-2 py-1.5 bg-black/[0.035] hover:bg-black/[0.05] focus:bg-white border border-border/80 focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/15 rounded-[6px] font-mono text-xs outline-none transition-colors duration-instant"
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] text-foreground-secondary block">Alinhamento:</label>
+                        <label className="text-[10.5px] font-medium text-foreground-primary block mb-1">Alinh. Horiz.</label>
                         <select
                           value={selectedField.textAlign || 'left'}
                           onChange={(e) =>
                             handleUpdateField(selectedField.key, { textAlign: e.target.value as any })
                           }
-                          className="w-full px-2 py-1 bg-surface-subtle border border-border rounded"
+                          className="w-full px-1.5 py-1.5 bg-black/[0.035] hover:bg-black/[0.05] focus:bg-white border border-border/80 focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/15 rounded-[6px] text-[11px] outline-none transition-colors duration-instant"
                         >
                           <option value="left">Esquerda</option>
                           <option value="center">Centro</option>
                           <option value="right">Direita</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10.5px] font-medium text-foreground-primary block mb-1">Alinh. Vert.</label>
+                        <select
+                          value={selectedField.verticalAlign || ((selectedField.heightMm ?? 8) >= 14 ? 'top' : 'middle')}
+                          onChange={(e) =>
+                            handleUpdateField(selectedField.key, { verticalAlign: e.target.value as any })
+                          }
+                          className="w-full px-1.5 py-1.5 bg-black/[0.035] hover:bg-black/[0.05] focus:bg-white border border-border/80 focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/15 rounded-[6px] text-[11px] outline-none transition-colors duration-instant"
+                        >
+                          <option value="top">Topo</option>
+                          <option value="middle">Meio</option>
+                          <option value="bottom">Base</option>
                         </select>
                       </div>
                     </div>
@@ -779,10 +1135,10 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                   {selectedField.type === 'svg' ? (
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
-                        <label className="text-[10px] text-foreground-secondary font-semibold">
-                          Conteúdo SVG do Elemento:
+                        <label className="text-[11px] font-medium text-foreground-primary">
+                          Conteúdo SVG do Elemento
                         </label>
-                        <label className="cursor-pointer text-[9px] text-primary hover:underline">
+                        <label className="cursor-pointer text-[10px] text-[#3a86ff] hover:underline font-medium">
                           Carregar .svg
                           <input
                             type="file"
@@ -796,13 +1152,13 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                         rows={3}
                         value={selectedField.svgContent || ''}
                         onChange={(e) => handleUpdateField(selectedField.key, { svgContent: e.target.value })}
-                        className="w-full text-[10px] font-mono p-1.5 bg-surface-subtle border border-border rounded"
+                        className="w-full text-[10px] font-mono p-2 bg-black/[0.035] hover:bg-black/[0.05] focus:bg-white border border-border/80 focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/15 rounded-[6px] outline-none transition-colors duration-instant"
                       />
                     </div>
                   ) : (
                     <div>
-                      <label className="text-[10px] text-foreground-secondary block mb-0.5">
-                        Valor Padrão / Mock:
+                      <label className="text-[11px] font-medium text-foreground-primary block mb-1">
+                        Valor Padrão / Mock
                       </label>
                       <input
                         type="text"
@@ -810,37 +1166,70 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                         onChange={(e) =>
                           handleUpdateField(selectedField.key, { defaultValue: e.target.value })
                         }
-                        className="w-full px-2 py-1 bg-surface-subtle border border-border rounded font-mono text-foreground-primary"
+                        className="w-full px-2.5 py-1.5 bg-black/[0.035] hover:bg-black/[0.05] focus:bg-white border border-border/80 focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/15 rounded-[6px] font-mono text-xs text-foreground-primary outline-none transition-colors duration-instant"
                       />
+                      {selectedField.type === 'text' && (
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          <span className="text-[10px] text-foreground-muted">Token dinâmico:</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const cur = String(selectedField.defaultValue ?? '');
+                              const token = '{copia}/{total}';
+                              handleUpdateField(selectedField.key, {
+                                defaultValue: cur ? `${cur} ${token}` : token,
+                              });
+                            }}
+                            className="btn-tactile text-[9.5px] font-mono text-[#3a86ff] hover:bg-[#3a86ff]/10 px-1.5 py-0.5 rounded border border-[#3a86ff]/20 transition-colors"
+                            title="Inserir identificador automático de cópia ({copia}/{total})"
+                          >
+                            +{'{copia}/{total}'}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
 
                   {/* Checkbox Opções */}
-                  <div className="pt-2 space-y-1.5 border-t border-border/60 text-[11px]">
-                    <label className="flex items-center gap-2 cursor-pointer">
+                  <div className="pt-2 space-y-1.5 border-t border-border/60 text-xs">
+                    <label className="flex items-center gap-2 cursor-pointer text-foreground-primary">
                       <input
                         type="checkbox"
                         checked={selectedField.showBorder || false}
                         onChange={(e) =>
                           handleUpdateField(selectedField.key, { showBorder: e.target.checked })
                         }
-                        className="rounded accent-primary"
+                        className="rounded accent-[#111111]"
                       />
                       <span>Desenhar borda retangular na caixa</span>
                     </label>
 
                     {selectedField.type === 'text' && (
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedField.showLabel || false}
-                          onChange={(e) =>
-                            handleUpdateField(selectedField.key, { showLabel: e.target.checked })
-                          }
-                          className="rounded accent-primary"
-                        />
-                        <span>Exibir rótulo antes do valor impresso</span>
-                      </label>
+                      <>
+                        <label className="flex items-center gap-2 cursor-pointer text-foreground-primary">
+                          <input
+                            type="checkbox"
+                            checked={selectedField.showLabel || false}
+                            onChange={(e) =>
+                              handleUpdateField(selectedField.key, { showLabel: e.target.checked })
+                            }
+                            className="rounded accent-[#111111]"
+                          />
+                          <span>Exibir rótulo antes do valor impresso</span>
+                        </label>
+
+                        <label className="flex items-center gap-2 cursor-pointer text-foreground-primary">
+                          <input
+                            type="checkbox"
+                            checked={selectedField.autoScaleFont !== false}
+                            onChange={(e) =>
+                              handleUpdateField(selectedField.key, { autoScaleFont: e.target.checked })
+                            }
+                            className="rounded accent-[#111111]"
+                          />
+                          <span>Ajustar tamanho da fonte ao redimensionar caixa</span>
+                        </label>
+                      </>
                     )}
                   </div>
                 </div>

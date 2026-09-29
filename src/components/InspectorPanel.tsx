@@ -5,7 +5,8 @@ import {
   Palette, 
   Crosshair, 
   RotateCcw, 
-  Download 
+  Download,
+  Sliders,
 } from 'lucide-react';
 import { 
   Template, 
@@ -16,6 +17,7 @@ import {
 } from '../types/template';
 import { DynamicForm } from './DynamicForm';
 import { SheetGridOptions } from './SheetGridOptions';
+import { ThermalCopiesOptions } from './ThermalCopiesOptions';
 import { PaperMediaPanel, PaperSelection } from './PaperMediaPanel';
 import { ColorSettingsPanel } from './ColorSettingsPanel';
 import { CropMarksPanel } from './CropMarksPanel';
@@ -26,6 +28,8 @@ export type InspectorTab = 'data' | 'media' | 'colors' | 'calibration';
 interface InspectorPanelProps {
   currentTemplate: Template | null;
   isOpen: boolean;
+  activeTab?: InspectorTab;
+  onChangeTab?: (tab: InspectorTab) => void;
   formData: TemplateFormData;
   offset: CalibrationOffset;
   colorAdjustments: ColorAdjustments;
@@ -50,6 +54,8 @@ interface InspectorPanelProps {
 export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   currentTemplate,
   isOpen,
+  activeTab: controlledTab,
+  onChangeTab,
   formData,
   offset,
   colorAdjustments,
@@ -66,30 +72,32 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   onResetForm,
   onExportPdf,
 }) => {
-  const [activeTab, setActiveTab] = useState<InspectorTab>('data');
-
-  if (!isOpen) return null;
-
-  const hasColorOrCropActive =
-    colorAdjustments.mode === 'cmyk-simulated' ||
-    cropMarks.enabled ||
-    colorAdjustments.brightness !== 0 ||
-    colorAdjustments.contrast !== 0 ||
-    colorAdjustments.saturation !== 0;
-
-  const hasCalibrationActive = offset.offsetX !== 0 || offset.offsetY !== 0;
+  const [internalTab, setInternalTab] = useState<InspectorTab>('data');
+  const activeTab = controlledTab ?? internalTab;
+  const setActiveTab = (tab: InspectorTab) => {
+    setInternalTab(tab);
+    if (onChangeTab) onChangeTab(tab);
+  };
 
   return (
     <aside
       aria-label="Inspetor de Configurações"
-      className="w-80 xl:w-96 h-full border-l border-border/80 bg-surface-card flex flex-col shrink-0 z-20 transition-all duration-snappy ease-out select-none"
+      aria-hidden={!isOpen}
+      className={`h-full border-black/[0.06] bg-surface-card flex flex-col shrink-0 z-20 transition-all duration-snappy ease-out select-none overflow-hidden ${
+        isOpen
+          ? 'w-80 xl:w-96 border-l opacity-100 pointer-events-auto'
+          : 'w-0 border-l-0 opacity-0 pointer-events-none'
+      }`}
     >
-      {/* 1. Header com Segmented Control Apple HIG */}
-      <div className="p-3 border-b border-border/70">
+      <div className="w-80 xl:w-96 h-full flex flex-col shrink-0">
+      {/* 1. Header com Segmented Control Horizontal Apple HIG */}
+      <div className="p-2.5 border-b border-border/70 bg-surface-subtle/40">
         <div
           role="tablist"
           aria-label="Abas do Inspetor"
-          className="grid grid-cols-4 gap-1 p-1 bg-surface-subtle/90 border border-border/80 rounded-[8px]"
+          className={`grid grid-cols-4 p-0.5 bg-black/[0.05] rounded-[8px] border border-black/[0.04] transition-opacity duration-snappy ${
+            !currentTemplate ? 'opacity-40 pointer-events-none' : ''
+          }`}
         >
           {/* Aba: Conteúdo / Dados */}
           <button
@@ -99,13 +107,13 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             aria-selected={activeTab === 'data'}
             aria-controls="panel-data"
             onClick={() => setActiveTab('data')}
-            className={`btn-tactile py-1.5 px-1 rounded-[5px] text-[11px] font-medium flex flex-col items-center justify-center gap-0.5 transition-all ${
-              activeTab === 'data'
-                ? 'bg-surface-card text-foreground-primary shadow-xs border border-border/80'
+            className={`btn-tactile h-7 rounded-[6px] text-[11px] font-medium flex items-center justify-center gap-1 transition-colors duration-instant ${
+              currentTemplate && activeTab === 'data'
+                ? 'bg-white text-foreground-primary shadow-xs font-semibold'
                 : 'text-foreground-secondary hover:text-foreground-primary'
             }`}
           >
-            <Edit3 className="w-3.5 h-3.5 text-[#3a86ff]" />
+            <Edit3 className="w-3 h-3 text-[#3a86ff]" />
             <span>Dados</span>
           </button>
 
@@ -117,13 +125,13 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             aria-selected={activeTab === 'media'}
             aria-controls="panel-media"
             onClick={() => setActiveTab('media')}
-            className={`btn-tactile py-1.5 px-1 rounded-[5px] text-[11px] font-medium flex flex-col items-center justify-center gap-0.5 transition-all ${
-              activeTab === 'media'
-                ? 'bg-surface-card text-foreground-primary shadow-xs border border-border/80'
+            className={`btn-tactile h-7 rounded-[6px] text-[11px] font-medium flex items-center justify-center gap-1 transition-colors duration-instant ${
+              currentTemplate && activeTab === 'media'
+                ? 'bg-white text-foreground-primary shadow-xs font-semibold'
                 : 'text-foreground-secondary hover:text-foreground-primary'
             }`}
           >
-            <FileText className="w-3.5 h-3.5 text-[#8338ec]" />
+            <FileText className="w-3 h-3 text-[#8338ec]" />
             <span>Mídia</span>
           </button>
 
@@ -135,20 +143,14 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             aria-selected={activeTab === 'colors'}
             aria-controls="panel-colors"
             onClick={() => setActiveTab('colors')}
-            className={`btn-tactile relative py-1.5 px-1 rounded-[5px] text-[11px] font-medium flex flex-col items-center justify-center gap-0.5 transition-all ${
-              activeTab === 'colors'
-                ? 'bg-surface-card text-foreground-primary shadow-xs border border-border/80'
+            className={`btn-tactile relative h-7 rounded-[6px] text-[11px] font-medium flex items-center justify-center gap-1 transition-colors duration-instant ${
+              currentTemplate && activeTab === 'colors'
+                ? 'bg-white text-foreground-primary shadow-xs font-semibold'
                 : 'text-foreground-secondary hover:text-foreground-primary'
             }`}
           >
-            <Palette className="w-3.5 h-3.5 text-[#ff006e]" />
-            <span>Cores/Corte</span>
-            {hasColorOrCropActive && (
-              <span
-                className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[#ff006e]"
-                title="Ajustes de cor ou corte ativos"
-              />
-            )}
+            <Palette className="w-3 h-3 text-[#ff006e]" />
+            <span>Corte</span>
           </button>
 
           {/* Aba: Calibração */}
@@ -159,20 +161,14 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             aria-selected={activeTab === 'calibration'}
             aria-controls="panel-calibration"
             onClick={() => setActiveTab('calibration')}
-            className={`btn-tactile relative py-1.5 px-1 rounded-[5px] text-[11px] font-medium flex flex-col items-center justify-center gap-0.5 transition-all ${
-              activeTab === 'calibration'
-                ? 'bg-surface-card text-foreground-primary shadow-xs border border-border/80'
+            className={`btn-tactile relative h-7 rounded-[6px] text-[11px] font-medium flex items-center justify-center gap-1 transition-colors duration-instant ${
+              currentTemplate && activeTab === 'calibration'
+                ? 'bg-white text-foreground-primary shadow-xs font-semibold'
                 : 'text-foreground-secondary hover:text-foreground-primary'
             }`}
           >
-            <Crosshair className="w-3.5 h-3.5 text-[#ffbe0b]" />
-            <span>Calibração</span>
-            {hasCalibrationActive && (
-              <span
-                className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[#ffbe0b]"
-                title="Deslocamento milimétrico ativo"
-              />
-            )}
+            <Crosshair className="w-3 h-3 text-[#ffbe0b]" />
+            <span>Calibrar</span>
           </button>
         </div>
       </div>
@@ -188,15 +184,25 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                   formData={formData}
                   onChangeField={onChangeField}
                   firstInputRef={firstInputRef}
+                  onClearAll={onResetForm}
                 />
 
-                {currentTemplate.grid && (
+                {currentTemplate.grid ? (
                   <SheetGridOptions
                     grid={currentTemplate.grid}
                     copies={Number(formData._gridCopies ?? currentTemplate.grid.rows * currentTemplate.grid.cols)}
                     startPosition={Number(formData._gridStartPosition ?? 0)}
+                    hideSingleCopy={formData._hideSingleCopy !== false}
                     onChangeCopies={onChangeCopies}
                     onChangeStartPosition={onChangeStartPosition}
+                    onChangeHideSingleCopy={(hide) => onChangeField('_hideSingleCopy', hide)}
+                  />
+                ) : (
+                  <ThermalCopiesOptions
+                    copies={Number(formData._thermalCopies ?? 1)}
+                    hideSingleCopy={formData._hideSingleCopy !== false}
+                    onChangeCopies={(copies) => onChangeField('_thermalCopies', copies)}
+                    onChangeHideSingleCopy={(hide) => onChangeField('_hideSingleCopy', hide)}
                   />
                 )}
               </div>
@@ -238,29 +244,37 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
             )}
           </>
         ) : (
-          <div className="p-4 text-center text-xs text-foreground-muted">
-            Selecione um modelo para editar seus dados e ajustes.
+          <div className="h-full min-h-[300px] flex flex-col items-center justify-center p-6 text-center space-y-3.5 my-auto animate-modal-enter">
+            <div className="w-11 h-11 rounded-full bg-black/[0.04] border border-black/[0.06] flex items-center justify-center text-foreground-muted">
+              <Sliders className="w-5 h-5 text-foreground-muted" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-xs font-semibold text-foreground-primary">Inspetor Inativo</h4>
+              <p className="text-[11px] text-foreground-muted leading-relaxed max-w-[200px]">
+                Selecione ou crie um modelo para preencher campos, escolher substratos e calibrar medidas.
+              </p>
+            </div>
           </div>
         )}
       </div>
 
       {/* 3. Rodapé com Ações Rápidas (Exportar PDF e Reset) */}
       {currentTemplate && (
-        <div className="p-3 border-t border-border/70 bg-surface-subtle/50 flex items-center gap-2">
+        <div className="p-3 border-t border-border/70 bg-surface-subtle/40 grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={onExportPdf}
-            className="btn-tactile flex-1 py-1.5 px-2.5 border border-border/80 bg-surface-card hover:bg-surface-subtle text-foreground-primary rounded-[6px] text-xs font-medium flex items-center justify-center gap-1.5 shadow-xs"
+            className="btn-tactile py-1.5 px-3 bg-surface-card hover:bg-black/[0.04] text-foreground-primary border border-border/80 rounded-[6px] text-xs font-medium flex items-center justify-center gap-1.5 shadow-2xs active:scale-[0.97] transition-colors duration-instant"
             title="Exportar documento como PDF"
           >
-            <Download className="w-3.5 h-3.5 text-foreground-muted" />
+            <Download className="w-3.5 h-3.5 text-foreground-secondary" />
             <span>Salvar PDF</span>
           </button>
 
           <button
             type="button"
             onClick={onResetForm}
-            className="btn-tactile py-1.5 px-2.5 border border-border/80 bg-surface-card hover:bg-surface-subtle text-foreground-secondary hover:text-foreground-primary rounded-[6px] text-xs font-medium flex items-center justify-center gap-1.5 shadow-xs"
+            className="btn-tactile py-1.5 px-3 bg-surface-card hover:bg-black/[0.04] text-foreground-secondary hover:text-foreground-primary border border-border/80 rounded-[6px] text-xs font-medium flex items-center justify-center gap-1.5 shadow-2xs active:scale-[0.97] transition-colors duration-instant"
             title="Restaurar dados padrão do modelo"
           >
             <RotateCcw className="w-3.5 h-3.5 text-foreground-muted" />
@@ -268,6 +282,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
           </button>
         </div>
       )}
+      </div>
     </aside>
   );
 };

@@ -104,6 +104,8 @@ const config: Config = {
         'snappy': '160ms',
         'normal': '200ms',
         'modal': '220ms',
+        '140': '140ms',
+        '160': '160ms',
       },
     },
   },

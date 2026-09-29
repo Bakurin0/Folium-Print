@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import JsBarcode from 'jsbarcode';
 import QRCode from 'qrcode';
+import { sanitizeSvg } from '../utils/sanitizeSvg';
 
 interface BarcodeProps {
   value: string;
@@ -130,7 +131,7 @@ export const QRCodeSvg: React.FC<QRCodeProps> = ({
     <div
       style={{ width: `${size}px`, height: `${size}px` }}
       className={`inline-block overflow-hidden ${className}`}
-      dangerouslySetInnerHTML={{ __html: svgString }}
+      dangerouslySetInnerHTML={{ __html: sanitizeSvg(svgString) }}
     />
   );
 };

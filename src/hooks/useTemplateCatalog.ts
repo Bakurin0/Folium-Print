@@ -13,8 +13,10 @@ export interface UseTemplateCatalogReturn {
   selectedTemplateId: string;
   currentTemplate: Template | null;
   selectTemplate: (id: string) => void;
+  closeTemplate: () => void;
   nextTemplate: () => void;
   saveTemplate: (def: CustomTemplateDefinition) => Template;
+  updateCurrentTemplateFields: (fields: CustomTemplateDefinition['fields']) => void;
   deleteTemplate: (id: string) => void;
 }
 
@@ -34,14 +36,27 @@ export function useTemplateCatalog(
   }, [customTemplates]);
 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(() => {
-    const list = loadCustomTemplates();
-    return list[0]?.id || ALL_TEMPLATES[0]?.id || '';
+    try {
+      const savedLast = localStorage.getItem('folium-last-active-template');
+      if (savedLast !== null) {
+        if (!savedLast) {
+          return '';
+        }
+        const list = loadCustomTemplates();
+        const exists = list.some((t) => t.id === savedLast) || ALL_TEMPLATES.some((t) => t.id === savedLast);
+        if (exists) {
+          return savedLast;
+        }
+        return '';
+      }
+    } catch {}
+    return '';
   });
 
   const currentTemplate = useMemo(() => {
+    if (!selectedTemplateId) return null;
     return (
       templates.find((t) => t.id === selectedTemplateId) ||
-      templates[0] ||
       null
     );
   }, [templates, selectedTemplateId]);
@@ -49,6 +64,9 @@ export function useTemplateCatalog(
   const selectTemplate = useCallback(
     (id: string) => {
       setSelectedTemplateId(id);
+      try {
+        localStorage.setItem('folium-last-active-template', id || '');
+      } catch {}
       const found = templates.find((t) => t.id === id);
       if (found && onSelectCallback) {
         onSelectCallback(found);
@@ -56,6 +74,13 @@ export function useTemplateCatalog(
     },
     [templates, onSelectCallback]
   );
+
+  const closeTemplate = useCallback(() => {
+    setSelectedTemplateId('');
+    try {
+      localStorage.setItem('folium-last-active-template', '');
+    } catch {}
+  }, []);
 
   const nextTemplate = useCallback(() => {
     if (templates.length <= 1) return;
@@ -78,22 +103,37 @@ export function useTemplateCatalog(
     [onSelectCallback]
   );
 
+  const updateCurrentTemplateFields = useCallback(
+    (fields: CustomTemplateDefinition['fields']) => {
+      if (!currentTemplate) return;
+      const def: CustomTemplateDefinition = {
+        id: currentTemplate.id,
+        name: currentTemplate.name,
+        category: currentTemplate.category,
+        description: currentTemplate.description,
+        dimensions: currentTemplate.dimensions,
+        grid: currentTemplate.grid,
+        fields: fields,
+        backgroundSvg: currentTemplate.backgroundSvg,
+        isCustom: true,
+      };
+      saveCustomTemplate(def);
+      const updated = loadCustomTemplates();
+      setCustomTemplates(updated);
+    },
+    [currentTemplate]
+  );
+
   const deleteTemplate = useCallback(
     (id: string) => {
       deleteCustomTemplate(id);
       const updated = loadCustomTemplates();
       setCustomTemplates(updated);
       if (selectedTemplateId === id) {
-        if (updated.length > 0) {
-          selectTemplate(updated[0].id);
-        } else if (ALL_TEMPLATES.length > 0) {
-          selectTemplate(ALL_TEMPLATES[0].id);
-        } else {
-          setSelectedTemplateId('');
-        }
+        closeTemplate();
       }
     },
-    [selectedTemplateId, selectTemplate]
+    [selectedTemplateId, closeTemplate]
   );
 
   return {
@@ -102,8 +142,10 @@ export function useTemplateCatalog(
     selectedTemplateId,
     currentTemplate,
     selectTemplate,
+    closeTemplate,
     nextTemplate,
     saveTemplate,
+    updateCurrentTemplateFields,
     deleteTemplate,
   };
 }

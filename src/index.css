@@ -85,6 +85,22 @@
   animation: backdropFadeIn var(--duration-normal) var(--ease-out) forwards;
 }
 
+/* Transição fluida de visão (Home vs Prancheta de Trabalho) */
+@keyframes viewFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-view-fade {
+  animation: viewFadeIn 150ms var(--ease-out) forwards;
+}
+
 /* Toast Sonner-style Retargetable Transition (CSS Transitions > Keyframes) */
 .toast-container {
   transition: transform var(--duration-normal) var(--ease-out),
@@ -110,6 +126,67 @@
   }
 }
 
+/* 3D Cinematic Splash Keyframes (Emil Kowalski Philosophy: GPU transforms & natural starting scale 0.95) */
+@keyframes cardRevealIn {
+  from {
+    opacity: 0;
+    transform: translateZ(-80px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateZ(0) scale(1);
+  }
+}
+
+@keyframes introPulse {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+/* Dashboard Entrance Stagger (CSS Hardware Accelerated, Emil Kowalski Stagger Principle) */
+@keyframes dashboardCardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dashboard-hero {
+  animation: dashboardCardEnter var(--duration-normal) var(--ease-out) backwards;
+}
+
+.quick-action-card {
+  animation: dashboardCardEnter var(--duration-normal) var(--ease-out) backwards;
+  transition: transform var(--duration-snappy) var(--ease-out),
+              box-shadow var(--duration-snappy) var(--ease-out),
+              border-color var(--duration-snappy) ease;
+}
+
+.quick-action-card:active {
+  transform: scale(0.97);
+}
+
+.template-card-item {
+  animation: dashboardCardEnter var(--duration-normal) var(--ease-out) backwards;
+  transition: transform var(--duration-snappy) var(--ease-out),
+              box-shadow var(--duration-snappy) var(--ease-out),
+              border-color var(--duration-snappy) ease;
+}
+
+.template-card-item:active {
+  transform: scale(0.97);
+}
+
 /* Accessibility: Respect prefers-reduced-motion (Keep opacity/color, drop movement) */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -130,6 +207,20 @@
   }
 
   .animate-modal-enter {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .animate-view-fade {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .dashboard-hero,
+  .quick-action-card,
+  .template-card-item {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;

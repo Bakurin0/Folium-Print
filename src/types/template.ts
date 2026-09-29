@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 
 export type TemplateCategory = 'thermal' | 'a4-sheet' | 'document';
 
-export type FieldType = 'text' | 'number' | 'date' | 'barcode' | 'qrcode' | 'svg';
+export type FieldType = 'text' | 'number' | 'date' | 'barcode' | 'qrcode' | 'svg' | 'textarea';
 
 export type BarcodeFormat = 'CODE128' | 'EAN13';
 
@@ -26,9 +26,12 @@ export interface TemplateField {
   fontSizePt?: number;
   fontWeight?: 'normal' | 'bold' | 'bolder';
   textAlign?: 'left' | 'center' | 'right';
+  verticalAlign?: 'top' | 'middle' | 'bottom';
   showBorder?: boolean;
   showLabel?: boolean;
   svgContent?: string;
+  locked?: boolean;
+  autoScaleFont?: boolean;
 }
 
 export interface TemplateDimensions {
@@ -61,6 +64,9 @@ export interface TemplateRenderProps {
   data: TemplateFormData;
   offset?: CalibrationOffset;
   isPreview?: boolean;
+  copyIndex?: number;
+  copyTotal?: number;
+  hideSingleCopy?: boolean;
 }
 
 export interface Template {

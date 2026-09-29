@@ -1,16 +1,30 @@
 import { CustomTemplateDefinition, TemplateRenderProps } from '../types/template';
 import { BarcodeSvg, QRCodeSvg } from '../components/CodeRenderer';
 import { sanitizeSvg } from './sanitizeSvg';
+import { resolveCopyTokens } from './paginationTokens';
 
 // ponytail: Uses CSS mm-based absolute coordinates and inline SVG. Native browser layout without canvas/fabric.js dependency.
 // Ceiling: Multi-layer z-index management and complex SVG path node-by-node vector editing is omitted.
 // Upgrade path: Integrate full vector path editor (Paper.js / SVG.js) if path-level drawing is requested.
 export const createDynamicRenderer = (template: CustomTemplateDefinition) => {
-  return ({ data, offset = { offsetX: 0, offsetY: 0 } }: TemplateRenderProps) => {
+  return ({
+    data,
+    offset = { offsetX: 0, offsetY: 0 },
+    isPreview = false,
+    copyIndex: propCopyIndex,
+    copyTotal: propCopyTotal,
+    hideSingleCopy: propHideSingleCopy,
+  }: TemplateRenderProps) => {
     const { widthMm, heightMm } = template.dimensions;
+    const shouldHideSingle = propHideSingleCopy ?? (data._hideSingleCopy !== false);
 
     // Helper to render the inner fields of a single label/document
-    const renderFields = (scopeWidth: number, _scopeHeight: number) => {
+    const renderFields = (
+      scopeWidth: number,
+      _scopeHeight: number,
+      activeCopyIndex: number = 1,
+      activeCopyTotal: number = 1
+    ) => {
       const hasPositionedFields = template.fields.some(
         (f) => typeof f.xMm === 'number' && typeof f.yMm === 'number'
       );
@@ -21,7 +35,25 @@ export const createDynamicRenderer = (template: CustomTemplateDefinition) => {
           const y = field.yMm ?? 2;
           const w = field.widthMm ?? scopeWidth - 4;
           const h = field.heightMm ?? 8;
-          const val = data[field.key] !== undefined ? data[field.key] : (field.defaultValue ?? '');
+          const rawVal = data[field.key] !== undefined ? data[field.key] : (field.defaultValue ?? '');
+          const isCodeOrSvg = field.type === 'svg' || field.type === 'qrcode' || field.type === 'barcode';
+          const val = isCodeOrSvg
+            ? rawVal
+            : resolveCopyTokens(String(rawVal ?? ''), activeCopyIndex, activeCopyTotal, shouldHideSingle);
+
+          const isOmittedBySingleCopy =
+            !isCodeOrSvg &&
+            !val &&
+            shouldHideSingle &&
+            activeCopyTotal <= 1 &&
+            /\{(?:copia|cópia|volume|total|volumes)\}/i.test(String(rawVal ?? ''));
+
+          if (isOmittedBySingleCopy) {
+            return null;
+          }
+
+          const vAlign = field.verticalAlign || ((field.heightMm ?? 8) >= 14 ? 'top' : 'middle');
+          const justifyContent = vAlign === 'top' ? 'flex-start' : vAlign === 'bottom' ? 'flex-end' : 'center';
 
           return (
             <div
@@ -39,7 +71,7 @@ export const createDynamicRenderer = (template: CustomTemplateDefinition) => {
                 fontWeight: field.fontWeight === 'bolder' ? 900 : field.fontWeight === 'bold' ? 700 : 400,
                 display: 'flex',
                 flexDirection: 'column',
-                justifyContent: 'center',
+                justifyContent,
                 border: field.showBorder ? '0.5px solid #000000' : 'none',
                 padding: field.showBorder ? '0.5mm' : '0mm',
               }}
@@ -65,13 +97,19 @@ export const createDynamicRenderer = (template: CustomTemplateDefinition) => {
                   />
                 </div>
               ) : (
-                <div className="w-full">
+                <div className="w-full text-black break-words whitespace-pre-wrap leading-snug">
                   {field.showLabel && (
-                    <span className="text-[7pt] text-gray-600 uppercase font-semibold mr-1">
-                      {field.label}:
+                    <span className={`mr-1 ${!val && isPreview ? 'opacity-40' : ''}`}>
+                      {field.label.endsWith(':') ? field.label : `${field.label}:`}
                     </span>
                   )}
-                  <span className="break-words leading-tight">{String(val || '')}</span>
+                  {val ? (
+                    <span className="break-words leading-snug">{String(val)}</span>
+                  ) : isPreview ? (
+                    <span className="break-words leading-snug opacity-30 italic font-normal">
+                      {field.placeholder || field.defaultValue || '—'}
+                    </span>
+                  ) : null}
                 </div>
               )}
             </div>
@@ -83,7 +121,23 @@ export const createDynamicRenderer = (template: CustomTemplateDefinition) => {
       return (
         <div className="p-2 w-full h-full flex flex-col justify-between">
           {template.fields.map((field) => {
-            const val = data[field.key] !== undefined ? data[field.key] : (field.defaultValue ?? '');
+            const rawVal = data[field.key] !== undefined ? data[field.key] : (field.defaultValue ?? '');
+            const isCode = field.type === 'barcode' || field.type === 'qrcode';
+            const val = isCode
+              ? rawVal
+              : resolveCopyTokens(String(rawVal ?? ''), activeCopyIndex, activeCopyTotal, shouldHideSingle);
+
+            const isOmittedBySingleCopy =
+              !isCode &&
+              !val &&
+              shouldHideSingle &&
+              activeCopyTotal <= 1 &&
+              /\{(?:copia|cópia|volume|total|volumes)\}/i.test(String(rawVal ?? ''));
+
+            if (isOmittedBySingleCopy) {
+              return null;
+            }
+
             if (field.type === 'barcode') {
               return (
                 <div key={field.key} className="flex justify-center py-1">
@@ -99,8 +153,8 @@ export const createDynamicRenderer = (template: CustomTemplateDefinition) => {
               );
             }
             return (
-              <div key={field.key} className="text-xs">
-                <span className="font-bold text-gray-600 text-[10px] mr-1">{field.label}:</span>
+              <div key={field.key} className="text-xs text-black">
+                <span className="mr-1">{field.label.endsWith(':') ? field.label : `${field.label}:`}</span>
                 <span>{String(val || '')}</span>
               </div>
             );
@@ -148,6 +202,7 @@ export const createDynamicRenderer = (template: CustomTemplateDefinition) => {
               const top = marginTopMm + r * (labelHeightMm + gapY);
               const left = marginLeftMm + c * (labelWidthMm + gapX);
               const isFilled = idx >= startPosition && idx < startPosition + copies;
+              const currentCopyIndex = isFilled ? idx - startPosition + 1 : 1;
 
               cells.push(
                 <div
@@ -163,14 +218,18 @@ export const createDynamicRenderer = (template: CustomTemplateDefinition) => {
                     border: '0.2mm dashed rgba(0,0,0,0.1)',
                   }}
                 >
-                  {isFilled && renderFields(labelWidthMm, labelHeightMm)}
+                  {isFilled && renderFields(labelWidthMm, labelHeightMm, currentCopyIndex, copies)}
                 </div>
               );
             }
             return cells;
           })()
         ) : (
-          renderFields(widthMm, heightMm)
+          (() => {
+            const singleCopyIndex = propCopyIndex ?? Number(data._previewCopyIndex ?? 1);
+            const singleCopyTotal = propCopyTotal ?? Number(data._thermalCopies ?? 1);
+            return renderFields(widthMm, heightMm, singleCopyIndex, singleCopyTotal);
+          })()
         )}
       </div>
     );
