@@ -26,20 +26,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenShortcutsModal }) => {
         </div>
       </div>
 
-      {/* Right Actions: Spot Palette Micro-Swatches & Shortcuts */}
+      {/* Right Actions: Shortcuts */}
       <div className="flex items-center gap-3">
-        {/* Spot Palette Micro-Bar */}
-        <div
-          className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-[6px] border border-border bg-surface-subtle"
-          title="Paleta do Design System (5 Spot Colors)"
-          aria-hidden="true"
-        >
-          <span className="w-2 h-2 rounded-full bg-amber-gold" />
-          <span className="w-2 h-2 rounded-full bg-blaze-orange" />
-          <span className="w-2 h-2 rounded-full bg-neon-pink" />
-          <span className="w-2 h-2 rounded-full bg-blue-violet" />
-          <span className="w-2 h-2 rounded-full bg-azure-blue" />
-        </div>
 
         <button
           type="button"

@@ -7,6 +7,11 @@ export interface CropMarksOptions {
   settings: CropMarkSettings;
 }
 
+/**
+ * Gerador de Marcas de Corte e Alvos de Registro padrão gráfico profissional (CorelDRAW / InDesign).
+ * Gera traços finos (0.15mm) nas quinas e interseções com afastamento de segurança de 1mm,
+ * garantindo que as linhas de corte apontem com exatidão sem sobrepor a arte física.
+ */
 export const generateCropMarksSvg = ({
   widthMm,
   heightMm,
@@ -16,34 +21,36 @@ export const generateCropMarksSvg = ({
   if (!settings.enabled) return '';
 
   const { bleedMm, showRegistrationMarks, showGridMarks, markLengthMm } = settings;
-  const strokeWidth = 0.15; // 0.15 mm (~0.4pt standard graphic crop mark)
+  const strokeWidth = 0.15; // 0.15 mm (~0.42pt padrão gráfico)
   const strokeColor = '#000000';
+  const gapMm = 1.0; // Afastamento de segurança entre a quina de corte e o início do traço
   const lines: string[] = [];
 
-  // Helper to add a line
+  // Helper para adicionar segmento de linha
   const addLine = (x1: number, y1: number, x2: number, y2: number) => {
     lines.push(
-      `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linecap="square" />`
+      `<line x1="${x1.toFixed(3)}" y1="${y1.toFixed(3)}" x2="${x2.toFixed(3)}" y2="${y2.toFixed(3)}" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linecap="square" />`
     );
   };
 
-  // Helper to add a registration target (CorelDRAW / Pre-press target)
-  const addRegistrationTarget = (cx: number, cy: number, radiusMm: number = 3) => {
+  // Helper para adicionar alvo circular de registro com mira central
+  const addRegistrationTarget = (cx: number, cy: number, radiusMm: number = 2.8) => {
+    const ext = radiusMm + 1.2;
     lines.push(`
       <g>
-        <circle cx="${cx}" cy="${cy}" r="${radiusMm}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" />
-        <circle cx="${cx}" cy="${cy}" r="${radiusMm * 0.5}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" />
-        <line x1="${cx - radiusMm - 1.5}" y1="${cy}" x2="${cx + radiusMm + 1.5}" y2="${cy}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />
-        <line x1="${cx}" y1="${cy - radiusMm - 1.5}" x2="${cx}" y2="${cy + radiusMm + 1.5}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />
+        <circle cx="${cx.toFixed(3)}" cy="${cy.toFixed(3)}" r="${radiusMm.toFixed(3)}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" />
+        <circle cx="${cx.toFixed(3)}" cy="${cy.toFixed(3)}" r="${(radiusMm * 0.45).toFixed(3)}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" />
+        <line x1="${(cx - ext).toFixed(3)}" y1="${cy.toFixed(3)}" x2="${(cx + ext).toFixed(3)}" y2="${cy.toFixed(3)}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />
+        <line x1="${cx.toFixed(3)}" y1="${(cy - ext).toFixed(3)}" x2="${cx.toFixed(3)}" y2="${(cy + ext).toFixed(3)}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />
       </g>
     `);
   };
 
   if (grid) {
-    // Grid-based crop marks (e.g., A4/A3 sheet with business cards or labels)
+    // 1. Marcas para folhas com matriz de etiquetas (A4/A3)
     const { rows, cols, marginTopMm, marginLeftMm, gapX, gapY, labelWidthMm, labelHeightMm } = grid;
 
-    // Collect all vertical cut coordinates (X in mm)
+    // Coleta todas as coordenadas verticais de corte (X em mm)
     const xCoords: number[] = [];
     for (let c = 0; c < cols; c++) {
       const left = marginLeftMm + c * (labelWidthMm + gapX);
@@ -52,7 +59,7 @@ export const generateCropMarksSvg = ({
       xCoords.push(right);
     }
 
-    // Collect all horizontal cut coordinates (Y in mm)
+    // Coleta todas as coordenadas horizontais de corte (Y em mm)
     const yCoords: number[] = [];
     for (let r = 0; r < rows; r++) {
       const top = marginTopMm + r * (labelHeightMm + gapY);
@@ -61,35 +68,34 @@ export const generateCropMarksSvg = ({
       yCoords.push(bottom);
     }
 
-    // Top margin tick marks
+    // Ticks perimetrais do topo
     xCoords.forEach((x) => {
-      addLine(x, Math.max(0, marginTopMm - markLengthMm - 1), x, marginTopMm - 1);
+      addLine(x, marginTopMm - gapMm - markLengthMm, x, marginTopMm - gapMm);
     });
 
-    // Bottom margin tick marks
+    // Ticks perimetrais da base
     const bottomCutBoundary = marginTopMm + rows * labelHeightMm + (rows - 1) * gapY;
     xCoords.forEach((x) => {
-      addLine(x, bottomCutBoundary + 1, x, Math.min(heightMm, bottomCutBoundary + markLengthMm + 1));
+      addLine(x, bottomCutBoundary + gapMm, x, bottomCutBoundary + gapMm + markLengthMm);
     });
 
-    // Left margin tick marks
+    // Ticks perimetrais da esquerda
     yCoords.forEach((y) => {
-      addLine(Math.max(0, marginLeftMm - markLengthMm - 1), y, marginLeftMm - 1, y);
+      addLine(marginLeftMm - gapMm - markLengthMm, y, marginLeftMm - gapMm, y);
     });
 
-    // Right margin tick marks
+    // Ticks perimetrais da direita
     const rightCutBoundary = marginLeftMm + cols * labelWidthMm + (cols - 1) * gapX;
     yCoords.forEach((y) => {
-      addLine(rightCutBoundary + 1, y, Math.min(widthMm, rightCutBoundary + markLengthMm + 1), y);
+      addLine(rightCutBoundary + gapMm, y, rightCutBoundary + gapMm + markLengthMm, y);
     });
 
-    // Internal grid intersection marks if enabled
+    // Cruzetas internas de interseção na grade (quando há espaçamento entre etiquetas)
     if (showGridMarks && (cols > 1 || rows > 1)) {
       for (let r = 1; r < rows; r++) {
         const yTop = marginTopMm + r * (labelHeightMm + gapY);
         for (let c = 1; c < cols; c++) {
           const xLeft = marginLeftMm + c * (labelWidthMm + gapX);
-          // small crosshair in gutter/intersection
           const half = 1.5;
           addLine(xLeft - half, yTop, xLeft + half, yTop);
           addLine(xLeft, yTop - half, xLeft, yTop + half);
@@ -97,36 +103,36 @@ export const generateCropMarksSvg = ({
       }
     }
   } else {
-    // Single Document Crop Marks (Outer 4 corners)
-    const left = bleedMm;
-    const top = bleedMm;
-    const right = widthMm - bleedMm;
-    const bottom = heightMm - bleedMm;
+    // 2. Marcas para documento avulso / etiqueta única (4 quinas em formato "L")
+    const left = bleedMm > 0 ? bleedMm : 0;
+    const top = bleedMm > 0 ? bleedMm : 0;
+    const right = bleedMm > 0 ? widthMm - bleedMm : widthMm;
+    const bottom = bleedMm > 0 ? heightMm - bleedMm : heightMm;
 
-    // Top-Left Corner
-    addLine(left, Math.max(0, top - markLengthMm - 1), left, Math.max(0, top - 1));
-    addLine(Math.max(0, left - markLengthMm - 1), top, Math.max(0, left - 1), top);
+    // Canto Superior Esquerdo
+    addLine(left, top - gapMm - markLengthMm, left, top - gapMm);
+    addLine(left - gapMm - markLengthMm, top, left - gapMm, top);
 
-    // Top-Right Corner
-    addLine(right, Math.max(0, top - markLengthMm - 1), right, Math.max(0, top - 1));
-    addLine(Math.min(widthMm, right + 1), top, Math.min(widthMm, right + markLengthMm + 1), top);
+    // Canto Superior Direito
+    addLine(right, top - gapMm - markLengthMm, right, top - gapMm);
+    addLine(right + gapMm, top, right + gapMm + markLengthMm, top);
 
-    // Bottom-Left Corner
-    addLine(left, Math.min(heightMm, bottom + 1), left, Math.min(heightMm, bottom + markLengthMm + 1));
-    addLine(Math.max(0, left - markLengthMm - 1), bottom, Math.max(0, left - 1), bottom);
+    // Canto Inferior Esquerdo
+    addLine(left, bottom + gapMm, left, bottom + gapMm + markLengthMm);
+    addLine(left - gapMm - markLengthMm, bottom, left - gapMm, bottom);
 
-    // Bottom-Right Corner
-    addLine(right, Math.min(heightMm, bottom + 1), right, Math.min(heightMm, bottom + markLengthMm + 1));
-    addLine(Math.min(widthMm, right + 1), bottom, Math.min(widthMm, right + markLengthMm + 1), bottom);
+    // Canto Inferior Direito
+    addLine(right, bottom + gapMm, right, bottom + gapMm + markLengthMm);
+    addLine(right + gapMm, bottom, right + gapMm + markLengthMm, bottom);
   }
 
-  // Registration Marks (Top, Bottom, Left, Right Centers)
+  // 3. Alvos de Registro Centrais (Top, Bottom, Left, Right)
   if (showRegistrationMarks) {
-    const targetOffset = 4.5; // mm from page edge
-    addRegistrationTarget(widthMm / 2, targetOffset);
-    addRegistrationTarget(widthMm / 2, heightMm - targetOffset);
-    addRegistrationTarget(targetOffset, heightMm / 2);
-    addRegistrationTarget(widthMm - targetOffset, heightMm / 2);
+    const targetDistanceMm = 4.0; // Distância segura a partir da borda externa do documento
+    addRegistrationTarget(widthMm / 2, targetDistanceMm);
+    addRegistrationTarget(widthMm / 2, heightMm - targetDistanceMm);
+    addRegistrationTarget(targetDistanceMm, heightMm / 2);
+    addRegistrationTarget(widthMm - targetDistanceMm, heightMm / 2);
   }
 
   return `

@@ -10,10 +10,12 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
   if (!isOpen) return null;
 
   const shortcuts = [
-    { keys: ['Ctrl', 'P'], label: 'Disparar impressão imediata calibrada' },
-    { keys: ['Ctrl', 'Enter'], label: 'Confirmar formulário e imprimir' },
-    { keys: ['Ctrl', 'T'], label: 'Alternar para o próximo modelo de impressão' },
-    { keys: ['Esc'], label: 'Resetar dados para os valores padrão do modelo' },
+    { keys: ['Ctrl / ⌘', 'P'], label: 'Disparar impressão imediata calibrada' },
+    { keys: ['Ctrl / ⌘', 'B'], label: 'Mostrar / Ocultar barra lateral de modelos' },
+    { keys: ['Ctrl / ⌘', 'I'], label: 'Mostrar / Ocultar inspetor de ajustes' },
+    { keys: ['Ctrl / ⌘', 'Enter'], label: 'Confirmar dados e disparar impressão' },
+    { keys: ['Ctrl / ⌘', 'T'], label: 'Alternar para o próximo modelo de impressão' },
+    { keys: ['Esc'], label: 'Fechar janelas modais / Cancelar ações' },
     { keys: ['Tab'], label: 'Navegar para o próximo campo do formulário' },
     { keys: ['Shift', 'Tab'], label: 'Navegar para o campo anterior' },
   ];

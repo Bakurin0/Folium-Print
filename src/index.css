@@ -140,15 +140,32 @@
    Apple Design Foundations: Translucent Materials, Vibrancy & Optical Tracking
    ========================================================================== */
 .apple-glass {
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
 }
 
 .apple-glass-subtle {
-  background: rgba(247, 246, 243, 0.78);
-  backdrop-filter: blur(16px) saturate(160%);
-  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  background: rgba(247, 246, 243, 0.82);
+  backdrop-filter: blur(20px) saturate(170%);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+}
+
+.apple-glass-card {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+/* Sombra de profundidade física Apple para folha de papel */
+.apple-paper-shadow {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.03),
+    0 4px 8px rgba(0, 0, 0, 0.04),
+    0 12px 24px -4px rgba(0, 0, 0, 0.07),
+    0 24px 48px -12px rgba(0, 0, 0, 0.09),
+    0 0 0 1px rgba(0, 0, 0, 0.06);
 }
 
 /* Optical Tracking (WWDC UI Typography) */
@@ -160,10 +177,19 @@
   letter-spacing: 0.04em;
 }
 
+/* Segmented Control Pill Animation */
+.apple-segmented-control {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px;
+  border-radius: 8px;
+  position: relative;
+}
+
 /* Accessibility: Respect prefers-reduced-transparency (WWDC Fluid Interfaces) */
 @media (prefers-reduced-transparency: reduce) {
   .apple-glass,
   .apple-glass-subtle,
+  .apple-glass-card,
   [class*="backdrop-blur"] {
     background: var(--surface-card) !important;
     backdrop-filter: none !important;
@@ -178,7 +204,8 @@
   }
   
   .apple-glass,
-  .apple-glass-subtle {
+  .apple-glass-subtle,
+  .apple-glass-card {
     border: 1px solid var(--foreground-primary) !important;
   }
 }

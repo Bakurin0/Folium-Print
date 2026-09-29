@@ -1,5 +1,6 @@
 import { CustomTemplateDefinition, TemplateRenderProps } from '../types/template';
 import { BarcodeSvg, QRCodeSvg } from '../components/CodeRenderer';
+import { sanitizeSvg } from './sanitizeSvg';
 
 // ponytail: Uses CSS mm-based absolute coordinates and inline SVG. Native browser layout without canvas/fabric.js dependency.
 // Ceiling: Multi-layer z-index management and complex SVG path node-by-node vector editing is omitted.
@@ -46,7 +47,7 @@ export const createDynamicRenderer = (template: CustomTemplateDefinition) => {
               {field.type === 'svg' ? (
                 <div
                   className="w-full h-full flex items-center justify-center overflow-hidden"
-                  dangerouslySetInnerHTML={{ __html: field.svgContent || String(val) || '<svg></svg>' }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeSvg(field.svgContent || String(val) || '<svg></svg>') }}
                 />
               ) : field.type === 'qrcode' ? (
                 <div className="w-full h-full flex items-center justify-center overflow-hidden">
@@ -128,7 +129,7 @@ export const createDynamicRenderer = (template: CustomTemplateDefinition) => {
         {template.backgroundSvg && (
           <div
             className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center opacity-90"
-            dangerouslySetInnerHTML={{ __html: template.backgroundSvg }}
+            dangerouslySetInnerHTML={{ __html: sanitizeSvg(template.backgroundSvg) }}
           />
         )}
 

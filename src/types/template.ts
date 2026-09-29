@@ -55,11 +55,6 @@ export interface CalibrationOffset {
   offsetY: number; // in mm
 }
 
-export interface GridOptions {
-  copies: number;
-  startPosition: number; // 0-indexed (e.g., 0 = top-left label)
-}
-
 export type TemplateFormData = Record<string, any>;
 
 export interface TemplateRenderProps {
@@ -111,16 +106,4 @@ export type PaperType =
   | 'adesivo-couche'
   | 'adesivo-vinil'
   | 'termico';
-
-export interface PaperSubstrate {
-  id: string;
-  name: string;
-  category: 'sheet' | 'roll';
-  widthMm: number;
-  heightMm: number;
-  paperType: PaperType;
-  weightGsm: number; // in g/m²
-  description?: string;
-  feedHint?: string;
-}
 

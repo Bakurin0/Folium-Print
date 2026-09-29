@@ -2,12 +2,14 @@ import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { Template, CalibrationOffset, TemplateFormData, ColorAdjustments, CropMarkSettings } from '../types/template';
 import { Maximize2, Ruler, Eye, Scissors, Palette } from 'lucide-react';
 import { generateCropMarksSvg } from '../utils/cropMarksGenerator';
+import { sanitizeSvg } from '../utils/sanitizeSvg';
+import { MM_TO_PX } from '../utils/units';
 
 interface PreviewCanvasProps {
   template: Template;
   formData: TemplateFormData;
   offset: CalibrationOffset;
-  printContainerRef: React.RefObject<HTMLDivElement>;
+  printContainerRef?: React.RefObject<HTMLDivElement>;
   colorAdjustments?: ColorAdjustments;
   cropMarks?: CropMarkSettings;
 }
@@ -26,8 +28,6 @@ export const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   const [zoomMode, setZoomMode] = useState<ZoomMode>('fit');
   const [fitScale, setFitScale] = useState<number>(1);
 
-  // Conversion: 1mm = 3.7795275591 px at standard screen resolution (96 DPI)
-  const MM_TO_PX = 3.779528;
   const targetWidthPx = template.dimensions.widthMm * MM_TO_PX;
   const targetHeightPx = template.dimensions.heightMm * MM_TO_PX;
 
@@ -86,12 +86,14 @@ export const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   // Generate SVG Crop Marks Markup
   const cropMarksSvg = useMemo(() => {
     if (!cropMarks?.enabled) return '';
-    return generateCropMarksSvg({
-      widthMm: template.dimensions.widthMm,
-      heightMm: template.dimensions.heightMm,
-      grid: template.grid,
-      settings: cropMarks,
-    });
+    return sanitizeSvg(
+      generateCropMarksSvg({
+        widthMm: template.dimensions.widthMm,
+        heightMm: template.dimensions.heightMm,
+        grid: template.grid,
+        settings: cropMarks,
+      })
+    );
   }, [template, cropMarks]);
 
   return (

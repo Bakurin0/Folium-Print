@@ -1,12 +1,14 @@
 import { Template } from '../types/template';
-import { BUILTIN_TEMPLATES } from './builtinTemplates';
 
-export const ALL_TEMPLATES: Template[] = BUILTIN_TEMPLATES;
+/**
+ * Catálogo de modelos pré-instalados de fábrica.
+ * Inicialmente vazio para permitir um catálogo 100% gerenciado pelo usuário.
+ */
+export const ALL_TEMPLATES: Template[] = [];
 
-export const getTemplateById = (id: string): Template | undefined => {
-  return ALL_TEMPLATES.find((t) => t.id === id);
-};
-
+/**
+ * Extrai os valores padrão dos campos de um modelo para preencher o formulário.
+ */
 export const getDefaultFormData = (template?: Template | null): Record<string, any> => {
   if (!template) return {};
   const data: Record<string, any> = {};

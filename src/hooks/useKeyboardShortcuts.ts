@@ -5,6 +5,8 @@ interface UseKeyboardShortcutsOptions {
   onNextTemplate: () => void;
   onReset: () => void;
   onToggleShortcutsModal: () => void;
+  onToggleLeftSidebar?: () => void;
+  onToggleRightSidebar?: () => void;
   isModalOpen: boolean;
   onCloseModal: () => void;
 }
@@ -14,6 +16,8 @@ export const useKeyboardShortcuts = ({
   onNextTemplate,
   onReset,
   onToggleShortcutsModal,
+  onToggleLeftSidebar,
+  onToggleRightSidebar,
   isModalOpen,
   onCloseModal,
 }: UseKeyboardShortcutsOptions) => {
@@ -30,6 +34,20 @@ export const useKeyboardShortcuts = ({
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
         e.preventDefault();
         onPrint();
+        return;
+      }
+
+      // Ctrl + B or Cmd + B -> Toggle Left Sidebar
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b' && onToggleLeftSidebar) {
+        e.preventDefault();
+        onToggleLeftSidebar();
+        return;
+      }
+
+      // Ctrl + I or Cmd + I -> Toggle Right Inspector
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i' && onToggleRightSidebar) {
+        e.preventDefault();
+        onToggleRightSidebar();
         return;
       }
 
@@ -63,5 +81,14 @@ export const useKeyboardShortcuts = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onPrint, onNextTemplate, onReset, onToggleShortcutsModal, isModalOpen, onCloseModal]);
+  }, [
+    onPrint, 
+    onNextTemplate, 
+    onReset, 
+    onToggleShortcutsModal, 
+    onToggleLeftSidebar, 
+    onToggleRightSidebar, 
+    isModalOpen, 
+    onCloseModal
+  ]);
 };

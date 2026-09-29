@@ -14,6 +14,8 @@ import {
   Move,
 } from 'lucide-react';
 import { BarcodeSvg, QRCodeSvg } from './CodeRenderer';
+import { MM_TO_PX } from '../utils/units';
+import { sanitizeSvg } from '../utils/sanitizeSvg';
 
 interface VisualTemplateEditorModalProps {
   isOpen: boolean;
@@ -21,9 +23,6 @@ interface VisualTemplateEditorModalProps {
   onClose: () => void;
   onSave: (templateDef: CustomTemplateDefinition) => void;
 }
-
-// 1mm = 3.779528 px at 96 DPI
-const MM_TO_PX = 3.779528;
 
 // ponytail: Drag & drop uses native mouse event delta to mm mapping.
 // Ceiling: Freeform rotation and multi-select alignment tools are omitted.
@@ -443,7 +442,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                 {backgroundSvg && (
                   <div
                     className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center opacity-80"
-                    dangerouslySetInnerHTML={{ __html: backgroundSvg }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeSvg(backgroundSvg) }}
                   />
                 )}
 
@@ -497,7 +496,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                       {field.type === 'svg' ? (
                         <div
                           className="w-full h-full flex items-center justify-center overflow-hidden pointer-events-none"
-                          dangerouslySetInnerHTML={{ __html: field.svgContent || '<svg></svg>' }}
+                          dangerouslySetInnerHTML={{ __html: sanitizeSvg(field.svgContent || '<svg></svg>') }}
                         />
                       ) : field.type === 'qrcode' ? (
                         <div className="w-full h-full flex items-center justify-center overflow-hidden pointer-events-none">
