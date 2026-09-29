@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CalibrationOffset } from '../types/template';
-import { Sliders, ChevronDown, ChevronUp, RotateCcw, HelpCircle } from 'lucide-react';
+import { Sliders, ChevronDown, RotateCcw, HelpCircle } from 'lucide-react';
 
 interface CalibrationPanelProps {
   offset: CalibrationOffset;
@@ -23,7 +23,7 @@ export const CalibrationPanel: React.FC<CalibrationPanelProps> = ({
   const hasOffset = offset.offsetX !== 0 || offset.offsetY !== 0;
 
   return (
-    <div className="border border-border rounded-[6px] bg-surface-card overflow-hidden transition-all">
+    <div className="border border-border rounded-[6px] bg-surface-card overflow-hidden">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -45,78 +45,90 @@ export const CalibrationPanel: React.FC<CalibrationPanelProps> = ({
           {hasOffset && (
             <span
               onClick={handleReset}
-              className="text-[10px] hover:text-foreground-primary p-1 rounded-[4px] hover:bg-surface-card"
+              className="btn-tactile text-[10px] hover:text-foreground-primary p-1 rounded-[4px] hover:bg-surface-card"
               title="Resetar calibração para 0,0 mm"
             >
               <RotateCcw className="w-3 h-3" strokeWidth={1.8} />
             </span>
           )}
-          {isOpen ? <ChevronUp className="w-3.5 h-3.5" strokeWidth={1.8} /> : <ChevronDown className="w-3.5 h-3.5" strokeWidth={1.8} />}
+          <ChevronDown
+            className={`w-3.5 h-3.5 transition-transform duration-snappy ease-emil-out ${
+              isOpen ? 'rotate-180' : 'rotate-0'
+            }`}
+            strokeWidth={1.8}
+          />
         </div>
       </button>
 
-      {isOpen && (
-        <div className="p-3 border-t border-border bg-surface-subtle/50 space-y-3">
-          <p className="text-[11px] text-foreground-muted flex items-start gap-1 leading-normal">
-            <HelpCircle className="w-3.5 h-3.5 text-foreground-muted shrink-0 mt-0.5" strokeWidth={1.8} />
-            <span>
-              Compensa tração mecânica do rolete da impressora para <strong>{templateName}</strong>. Salvo localmente.
-            </span>
-          </p>
+      {/* Accordion suave usando CSS Grid com overflow-hidden */}
+      <div
+        className={`grid transition-[grid-template-rows,opacity] duration-normal ease-emil-out ${
+          isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="p-3 border-t border-border bg-surface-subtle/50 space-y-3">
+            <p className="text-[11px] text-foreground-muted flex items-start gap-1 leading-normal">
+              <HelpCircle className="w-3.5 h-3.5 text-foreground-muted shrink-0 mt-0.5" strokeWidth={1.8} />
+              <span>
+                Compensa tração mecânica do rolete da impressora para <strong>{templateName}</strong>. Salvo localmente.
+              </span>
+            </p>
 
-          <div className="grid grid-cols-2 gap-3">
-            {/* Offset X */}
-            <div className="space-y-1">
-              <div className="flex justify-between text-[11px]">
-                <label className="text-foreground-secondary font-medium">Offset X:</label>
-                <span className="font-mono font-medium text-foreground-primary">
-                  {offset.offsetX > 0 ? `+${offset.offsetX}` : offset.offsetX} mm
-                </span>
+            <div className="grid grid-cols-2 gap-3">
+              {/* Offset X */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-[11px]">
+                  <label className="text-foreground-secondary font-medium">Offset X:</label>
+                  <span className="font-mono font-medium text-foreground-primary">
+                    {offset.offsetX > 0 ? `+${offset.offsetX}` : offset.offsetX} mm
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={-15}
+                  max={15}
+                  step={0.5}
+                  value={offset.offsetX}
+                  onChange={(e) =>
+                    onChangeOffset({ ...offset, offsetX: parseFloat(e.target.value) })
+                  }
+                  className="w-full accent-[#111111] h-1 bg-border rounded cursor-pointer"
+                />
+                <div className="flex justify-between text-[9px] text-foreground-muted font-mono">
+                  <span>-15 mm</span>
+                  <span>+15 mm</span>
+                </div>
               </div>
-              <input
-                type="range"
-                min={-15}
-                max={15}
-                step={0.5}
-                value={offset.offsetX}
-                onChange={(e) =>
-                  onChangeOffset({ ...offset, offsetX: parseFloat(e.target.value) })
-                }
-                className="w-full accent-[#111111] h-1 bg-border rounded cursor-pointer"
-              />
-              <div className="flex justify-between text-[9px] text-foreground-muted font-mono">
-                <span>-15 mm</span>
-                <span>+15 mm</span>
-              </div>
-            </div>
 
-            {/* Offset Y */}
-            <div className="space-y-1">
-              <div className="flex justify-between text-[11px]">
-                <label className="text-foreground-secondary font-medium">Offset Y:</label>
-                <span className="font-mono font-medium text-foreground-primary">
-                  {offset.offsetY > 0 ? `+${offset.offsetY}` : offset.offsetY} mm
-                </span>
-              </div>
-              <input
-                type="range"
-                min={-15}
-                max={15}
-                step={0.5}
-                value={offset.offsetY}
-                onChange={(e) =>
-                  onChangeOffset({ ...offset, offsetY: parseFloat(e.target.value) })
-                }
-                className="w-full accent-[#111111] h-1 bg-border rounded cursor-pointer"
-              />
-              <div className="flex justify-between text-[9px] text-foreground-muted font-mono">
-                <span>-15 mm</span>
-                <span>+15 mm</span>
+              {/* Offset Y */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-[11px]">
+                  <label className="text-foreground-secondary font-medium">Offset Y:</label>
+                  <span className="font-mono font-medium text-foreground-primary">
+                    {offset.offsetY > 0 ? `+${offset.offsetY}` : offset.offsetY} mm
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={-15}
+                  max={15}
+                  step={0.5}
+                  value={offset.offsetY}
+                  onChange={(e) =>
+                    onChangeOffset({ ...offset, offsetY: parseFloat(e.target.value) })
+                  }
+                  className="w-full accent-[#111111] h-1 bg-border rounded cursor-pointer"
+                />
+                <div className="flex justify-between text-[9px] text-foreground-muted font-mono">
+                  <span>-15 mm</span>
+                  <span>+15 mm</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };

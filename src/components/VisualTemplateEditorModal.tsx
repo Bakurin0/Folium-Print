@@ -186,8 +186,8 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
     }
   };
 
-  // Mouse Dragging on Canvas Boxes
-  const handleBoxMouseDown = (e: React.MouseEvent, field: TemplateField) => {
+  // Direct Manipulation: Pointer Events Dragging with 1:1 Tracking & Capture (Apple WWDC Fluid Interfaces)
+  const handleBoxPointerDown = (e: React.PointerEvent<HTMLDivElement>, field: TemplateField) => {
     e.stopPropagation();
     setSelectedFieldKey(field.key);
     setIsDragging(true);
@@ -197,10 +197,12 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
       initX: field.xMm ?? 0,
       initY: field.yMm ?? 0,
     });
+    // Lock pointer capture to maintain continuous 1:1 tracking even outside container
+    e.currentTarget.setPointerCapture(e.pointerId);
   };
 
-  const handleCanvasMouseMove = useCallback(
-    (e: React.MouseEvent) => {
+  const handleBoxPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
       if (!isDragging || !dragStart || !selectedFieldKey) return;
 
       const deltaPixelX = e.clientX - dragStart.mouseX;
@@ -218,7 +220,10 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
     [isDragging, dragStart, selectedFieldKey, canvasZoom, widthMm, heightMm]
   );
 
-  const handleCanvasMouseUp = () => {
+  const handleBoxPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
     setIsDragging(false);
     setDragStart(null);
   };
@@ -267,16 +272,25 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-3 select-none animate-in fade-in">
-      <div className="bg-surface-card border border-border rounded-[8px] shadow-subtle w-full h-[95vh] max-w-6xl flex flex-col overflow-hidden">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-3 select-none animate-backdrop-in"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="visual-editor-title"
+        onClick={(e) => e.stopPropagation()}
+        className="bg-surface-card border border-border rounded-[8px] shadow-subtle w-full h-[95vh] max-w-6xl flex flex-col overflow-hidden animate-modal-enter"
+      >
         {/* Top Header & Actions Bar */}
         <div className="h-13 px-4 border-b border-border bg-surface-card flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-[6px] border border-border bg-surface-subtle flex items-center justify-center text-foreground-primary">
-              <Ruler className="w-4 h-4 text-foreground-primary" strokeWidth={1.8} />
+              <Ruler className="w-4 h-4 text-foreground-primary" strokeWidth={1.8} aria-hidden="true" />
             </div>
             <div>
-              <h2 className="text-xs font-semibold tracking-tight text-foreground-primary">
+              <h2 id="visual-editor-title" className="text-xs font-semibold tracking-tight text-foreground-primary">
                 Editor Visual de Etiquetas & SVG
               </h2>
               <span className="text-[11px] text-foreground-muted">
@@ -285,12 +299,12 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
             </div>
           </div>
 
-          {/* Quick Add Elements Toolbar with Spot Colors */}
+          {/* Quick Add Elements Toolbar with Spot Colors & Tactile Buttons */}
           <div className="flex items-center gap-1 bg-surface-subtle p-0.5 rounded-[6px] border border-border">
             <button
               type="button"
               onClick={() => handleAddField('text')}
-              className="px-2 py-1 text-xs font-medium text-foreground-primary hover:bg-surface-card rounded-[4px] flex items-center gap-1.5 transition-colors"
+              className="btn-tactile px-2 py-1 text-xs font-medium text-foreground-primary hover:bg-surface-card rounded-[4px] flex items-center gap-1.5"
             >
               <Type className="w-3.5 h-3.5 text-foreground-muted" strokeWidth={1.8} />
               <span>+ Texto</span>
@@ -298,7 +312,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
             <button
               type="button"
               onClick={() => handleAddField('barcode', { barcodeFormat: 'CODE128' })}
-              className="px-2 py-1 text-xs font-medium text-foreground-primary hover:bg-surface-card rounded-[4px] flex items-center gap-1.5 transition-colors"
+              className="btn-tactile px-2 py-1 text-xs font-medium text-foreground-primary hover:bg-surface-card rounded-[4px] flex items-center gap-1.5"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-azure-blue" />
               <Barcode className="w-3.5 h-3.5 text-foreground-muted" strokeWidth={1.8} />
@@ -307,7 +321,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
             <button
               type="button"
               onClick={() => handleAddField('barcode', { barcodeFormat: 'EAN13', defaultValue: '7891000100103' })}
-              className="px-2 py-1 text-xs font-medium text-foreground-primary hover:bg-surface-card rounded-[4px] flex items-center gap-1.5 transition-colors"
+              className="btn-tactile px-2 py-1 text-xs font-medium text-foreground-primary hover:bg-surface-card rounded-[4px] flex items-center gap-1.5"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-amber-gold" />
               <Barcode className="w-3.5 h-3.5 text-foreground-muted" strokeWidth={1.8} />
@@ -316,7 +330,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
             <button
               type="button"
               onClick={() => handleAddField('qrcode')}
-              className="px-2 py-1 text-xs font-medium text-foreground-primary hover:bg-surface-card rounded-[4px] flex items-center gap-1.5 transition-colors"
+              className="btn-tactile px-2 py-1 text-xs font-medium text-foreground-primary hover:bg-surface-card rounded-[4px] flex items-center gap-1.5"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-neon-pink" />
               <QrCode className="w-3.5 h-3.5 text-foreground-muted" strokeWidth={1.8} />
@@ -330,7 +344,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                   svgContent: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" fill="none" stroke="black" stroke-width="6"/><path d="M30 50 L45 65 L70 35" stroke="black" stroke-width="6" fill="none"/></svg>`,
                 })
               }
-              className="px-2 py-1 text-xs font-medium text-foreground-primary hover:bg-surface-card rounded-[4px] flex items-center gap-1.5 transition-colors"
+              className="btn-tactile px-2 py-1 text-xs font-medium text-foreground-primary hover:bg-surface-card rounded-[4px] flex items-center gap-1.5"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-blue-violet" />
               <FileCode className="w-3.5 h-3.5 text-foreground-muted" strokeWidth={1.8} />
@@ -343,7 +357,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
             <button
               type="button"
               onClick={handleSave}
-              className="bg-[#111111] hover:bg-[#27272a] active:scale-[0.98] text-white text-xs font-medium px-3 py-1.5 rounded-[6px] border border-[#111111] flex items-center gap-1.5 transition-all shadow-xs"
+              className="btn-tactile bg-[#111111] hover:bg-[#27272a] text-white text-xs font-medium px-3 py-1.5 rounded-[6px] border border-[#111111] flex items-center gap-1.5 shadow-xs"
             >
               <Save className="w-3.5 h-3.5 text-white/90" strokeWidth={1.8} />
               <span>Salvar Modelo</span>
@@ -351,9 +365,11 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
             <button
               type="button"
               onClick={onClose}
-              className="text-foreground-muted hover:text-foreground-primary p-1.5 rounded-[4px] hover:bg-surface-subtle"
+              className="btn-tactile text-foreground-muted hover:text-foreground-primary p-1.5 rounded-[4px] hover:bg-surface-subtle"
+              title="Fechar (Esc)"
+              aria-label="Fechar editor visual (Esc)"
             >
-              <X className="w-4 h-4" strokeWidth={1.8} />
+              <X className="w-4 h-4" strokeWidth={1.8} aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -361,13 +377,9 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
         {/* Editor Main Body: Canvas Center (65%) + Inspector Sidebar (35%) */}
         <div className="flex-1 flex overflow-hidden">
           {/* Center Canvas Area */}
-          <div
-            className="flex-1 bg-surface-canvas relative flex flex-col overflow-hidden"
-            onMouseMove={handleCanvasMouseMove}
-            onMouseUp={handleCanvasMouseUp}
-          >
-            {/* Top Toolbar Zoom Controls */}
-            <div className="p-2 border-b border-border/40 bg-surface-card/60 backdrop-blur flex items-center justify-between text-xs z-10">
+          <div className="flex-1 bg-surface-canvas relative flex flex-col overflow-hidden">
+            {/* Top Toolbar Zoom Controls com Apple Glass sutil */}
+            <div className="p-2 border-b border-border/40 apple-glass-subtle flex items-center justify-between text-xs z-10">
               <div className="flex items-center gap-2 text-foreground-muted">
                 <span className="font-mono font-bold text-foreground-primary">
                   {widthMm} × {heightMm} mm
@@ -379,14 +391,20 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                   type="button"
                   onClick={() => setCanvasZoom((z) => Math.max(1.0, z - 0.25))}
                   className="px-2 py-0.5 rounded bg-surface-subtle hover:bg-border/60"
+                  title="Diminuir zoom"
+                  aria-label="Diminuir zoom"
                 >
                   -
                 </button>
-                <span className="px-1 text-foreground-secondary">{Math.round(canvasZoom * 100)}%</span>
+                <span className="px-1 text-foreground-secondary" aria-label={`Zoom atual: ${Math.round(canvasZoom * 100)}%`}>
+                  {Math.round(canvasZoom * 100)}%
+                </span>
                 <button
                   type="button"
                   onClick={() => setCanvasZoom((z) => Math.min(3.5, z + 0.25))}
                   className="px-2 py-0.5 rounded bg-surface-subtle hover:bg-border/60"
+                  title="Aumentar zoom"
+                  aria-label="Aumentar zoom"
                 >
                   +
                 </button>
@@ -402,7 +420,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                   height: `${heightMm * MM_TO_PX * canvasZoom}px`,
                   backgroundColor: '#ffffff',
                 }}
-                className="relative shadow-2xl border border-black/20 select-none overflow-hidden transition-all"
+                className="relative shadow-2xl border border-black/20 select-none overflow-hidden transition-[width,height] duration-snappy ease-out"
                 onClick={(e) => {
                   if (e.target === e.currentTarget) {
                     setSelectedFieldKey(null);
@@ -444,7 +462,10 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                         e.stopPropagation();
                         setSelectedFieldKey(field.key);
                       }}
-                      onMouseDown={(e) => handleBoxMouseDown(e, field)}
+                      onPointerDown={(e) => handleBoxPointerDown(e, field)}
+                      onPointerMove={handleBoxPointerMove}
+                      onPointerUp={handleBoxPointerUp}
+                      onPointerCancel={handleBoxPointerUp}
                       style={{
                         position: 'absolute',
                         left: `${xPx}px`,
@@ -453,7 +474,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                         height: `${hPx}px`,
                         cursor: isDragging && isSelected ? 'grabbing' : 'grab',
                       }}
-                      className={`group transition-all flex flex-col justify-center overflow-hidden p-0.5 ${
+                      className={`group touch-none flex flex-col justify-center overflow-hidden p-0.5 select-none ${
                         isSelected
                           ? 'ring-2 ring-primary ring-offset-2 bg-primary/15 shadow-xl z-30'
                           : 'border border-dashed border-gray-400 hover:border-primary hover:bg-primary/5 z-10'

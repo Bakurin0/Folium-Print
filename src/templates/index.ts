@@ -1,6 +1,7 @@
 import { Template } from '../types/template';
+import { BUILTIN_TEMPLATES } from './builtinTemplates';
 
-export const ALL_TEMPLATES: Template[] = [];
+export const ALL_TEMPLATES: Template[] = BUILTIN_TEMPLATES;
 
 export const getTemplateById = (id: string): Template | undefined => {
   return ALL_TEMPLATES.find((t) => t.id === id);

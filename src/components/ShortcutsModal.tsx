@@ -19,19 +19,31 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in">
-      <div className="bg-surface-card border border-border rounded-[8px] shadow-subtle max-w-md w-full overflow-hidden">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-backdrop-in"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="shortcuts-modal-title"
+        onClick={(e) => e.stopPropagation()}
+        className="bg-surface-card border border-border rounded-[8px] shadow-subtle max-w-md w-full overflow-hidden animate-modal-enter"
+      >
         {/* Window Chrome Minimalist Header */}
         <div className="p-3.5 border-b border-border flex items-center justify-between bg-surface-subtle/50">
           <div className="flex items-center gap-2 text-foreground-primary">
-            <Keyboard className="w-4 h-4 text-foreground-muted" strokeWidth={1.8} />
-            <h3 className="font-semibold text-xs tracking-tight">Atalhos Operacionais de Teclado</h3>
+            <Keyboard className="w-4 h-4 text-foreground-muted" strokeWidth={1.8} aria-hidden="true" />
+            <h3 id="shortcuts-modal-title" className="font-semibold text-xs tracking-tight">Atalhos Operacionais de Teclado</h3>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="text-foreground-muted hover:text-foreground-primary p-1 rounded-[4px] hover:bg-surface-subtle"
+            className="btn-tactile text-foreground-muted hover:text-foreground-primary p-1 rounded-[4px] hover:bg-surface-subtle"
+            title="Fechar (Esc)"
+            aria-label="Fechar janela de atalhos (Esc)"
           >
-            <X className="w-3.5 h-3.5" strokeWidth={1.8} />
+            <X className="w-3.5 h-3.5" strokeWidth={1.8} aria-hidden="true" />
           </button>
         </div>
 
@@ -60,7 +72,7 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-1 bg-[#111111] hover:bg-[#27272a] text-white text-xs font-medium rounded-[6px] transition-colors"
+            className="btn-tactile px-3 py-1 bg-[#111111] hover:bg-[#27272a] text-white text-xs font-medium rounded-[6px]"
           >
             Entendido
           </button>

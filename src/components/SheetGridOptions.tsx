@@ -99,7 +99,7 @@ export const SheetGridOptions: React.FC<SheetGridOptionsProps> = ({
                 type="button"
                 onClick={() => onChangeStartPosition(i)}
                 title={`Etiqueta #${i + 1} ${isFilled ? '(Será impressa)' : '(Em branco/usada)'}`}
-                className={`h-2.5 rounded-[2px] transition-all text-[7px] flex items-center justify-center font-mono ${
+                className={`h-2.5 rounded-[2px] transition-[background-color,border-color,box-shadow] duration-instant ease text-[7px] flex items-center justify-center font-mono ${
                   isFirst
                     ? 'bg-[#111111] text-white font-bold ring-1 ring-[#111111]'
                     : isFilled

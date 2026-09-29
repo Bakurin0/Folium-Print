@@ -94,8 +94,20 @@ const config: Config = {
         subtle: '0 1px 3px rgba(0, 0, 0, 0.05)',
         none: 'none',
       },
+      transitionTimingFunction: {
+        'emil-out': 'cubic-bezier(0.23, 1, 0.32, 1)',
+        'emil-in-out': 'cubic-bezier(0.77, 0, 0.175, 1)',
+        'emil-spring': 'cubic-bezier(0.32, 0.72, 0, 1)',
+      },
+      transitionDuration: {
+        'instant': '120ms',
+        'snappy': '160ms',
+        'normal': '200ms',
+        'modal': '220ms',
+      },
     },
   },
+
   plugins: [],
 };
 

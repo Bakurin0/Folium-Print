@@ -13,6 +13,12 @@
     background-color: var(--surface-app);
     color: var(--foreground-primary);
   }
+
+  /* Accessibility: WCAG 2.4.7 & 1.4.11 Visible Focus Indicator */
+  :focus-visible {
+    outline: 2px solid var(--foreground-primary);
+    outline-offset: 2px;
+  }
 }
 
 /* Custom scrollbars for productivity desktop ergonomics */
@@ -33,3 +39,148 @@
 ::-webkit-scrollbar-thumb:hover {
   background: var(--border-strong);
 }
+
+/* ==========================================================================
+   Design Engineering Tactile Physics & Modals (Emil Kowalski Philosophy)
+   ========================================================================== */
+.btn-tactile {
+  transition: transform var(--duration-snappy) var(--ease-out),
+              background-color var(--duration-snappy) ease,
+              border-color var(--duration-snappy) ease,
+              color var(--duration-snappy) ease;
+  transform-origin: center;
+}
+
+.btn-tactile:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Modal Entrance with 0.96 Scale (Never animate from scale 0) */
+@keyframes modalEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-modal-enter {
+  animation: modalEnter var(--duration-modal) var(--ease-out) forwards;
+  transform-origin: center;
+}
+
+@keyframes backdropFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-backdrop-in {
+  animation: backdropFadeIn var(--duration-normal) var(--ease-out) forwards;
+}
+
+/* Toast Sonner-style Retargetable Transition (CSS Transitions > Keyframes) */
+.toast-container {
+  transition: transform var(--duration-normal) var(--ease-out),
+              opacity var(--duration-normal) var(--ease-out);
+  will-change: transform, opacity;
+}
+
+.toast-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.toast-hidden {
+  opacity: 0;
+  transform: translateY(12px) scale(0.97);
+  pointer-events: none;
+}
+
+@starting-style {
+  .toast-visible {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+}
+
+/* Accessibility: Respect prefers-reduced-motion (Keep opacity/color, drop movement) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .btn-tactile:active:not(:disabled) {
+    transform: none !important;
+  }
+
+  .toast-container {
+    transform: none !important;
+    transition: opacity var(--duration-normal) ease !important;
+  }
+
+  .animate-modal-enter {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* ==========================================================================
+   Apple Design Foundations: Translucent Materials, Vibrancy & Optical Tracking
+   ========================================================================== */
+.apple-glass {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+.apple-glass-subtle {
+  background: rgba(247, 246, 243, 0.78);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+}
+
+/* Optical Tracking (WWDC UI Typography) */
+.tracking-display {
+  letter-spacing: -0.025em;
+}
+
+.tracking-caption {
+  letter-spacing: 0.04em;
+}
+
+/* Accessibility: Respect prefers-reduced-transparency (WWDC Fluid Interfaces) */
+@media (prefers-reduced-transparency: reduce) {
+  .apple-glass,
+  .apple-glass-subtle,
+  [class*="backdrop-blur"] {
+    background: var(--surface-card) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+/* Accessibility: Respect prefers-contrast: more */
+@media (prefers-contrast: more) {
+  * {
+    border-color: var(--foreground-primary) !important;
+  }
+  
+  .apple-glass,
+  .apple-glass-subtle {
+    border: 1px solid var(--foreground-primary) !important;
+  }
+}
+
+

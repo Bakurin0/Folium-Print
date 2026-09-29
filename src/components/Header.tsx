@@ -8,19 +8,19 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onOpenShortcutsModal }) => {
   return (
-    <header className="h-14 border-b border-border bg-surface-card px-5 flex items-center justify-between shrink-0 select-none">
+    <header className="h-14 border-b border-border/80 apple-glass px-5 flex items-center justify-between shrink-0 select-none sticky top-0 z-30">
       {/* Brand & Identity */}
       <div className="flex items-center gap-2.5">
         <img
           src={appIcon}
           alt="Folium Print Icon"
-          className="w-7 h-7 rounded-[6px] object-contain"
+          className="w-7 h-7 rounded-[7px] object-contain shadow-xs border border-black/5"
         />
         <div className="flex items-center gap-2">
-          <h1 className="text-sm font-semibold tracking-tight text-foreground-primary">
+          <h1 className="text-sm font-semibold tracking-display text-foreground-primary">
             Folium Print
           </h1>
-          <span className="text-[9px] tracking-wider uppercase font-mono px-1.5 py-0.5 rounded-[4px] border border-border bg-surface-subtle text-foreground-muted">
+          <span className="text-[9px] tracking-caption uppercase font-mono px-1.5 py-0.5 rounded-[4px] border border-border bg-surface-subtle/80 text-foreground-muted">
             V0.1 · DESKTOP
           </span>
         </div>
@@ -32,23 +32,25 @@ export const Header: React.FC<HeaderProps> = ({ onOpenShortcutsModal }) => {
         <div
           className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-[6px] border border-border bg-surface-subtle"
           title="Paleta do Design System (5 Spot Colors)"
+          aria-hidden="true"
         >
-          <span className="w-2 h-2 rounded-full bg-amber-gold" title="Amber Gold (#ffbe0b)" />
-          <span className="w-2 h-2 rounded-full bg-blaze-orange" title="Blaze Orange (#fb5607)" />
-          <span className="w-2 h-2 rounded-full bg-neon-pink" title="Neon Pink (#ff006e)" />
-          <span className="w-2 h-2 rounded-full bg-blue-violet" title="Blue Violet (#8338ec)" />
-          <span className="w-2 h-2 rounded-full bg-azure-blue" title="Azure Blue (#3a86ff)" />
+          <span className="w-2 h-2 rounded-full bg-amber-gold" />
+          <span className="w-2 h-2 rounded-full bg-blaze-orange" />
+          <span className="w-2 h-2 rounded-full bg-neon-pink" />
+          <span className="w-2 h-2 rounded-full bg-blue-violet" />
+          <span className="w-2 h-2 rounded-full bg-azure-blue" />
         </div>
 
         <button
           type="button"
           onClick={onOpenShortcutsModal}
-          className="inline-flex items-center gap-1.5 text-xs text-foreground-secondary hover:text-foreground-primary bg-surface-card hover:bg-surface-subtle border border-border px-2.5 py-1 rounded-[6px] transition-colors"
-          title="Ver atalhos operacionais"
+          className="btn-tactile inline-flex items-center gap-1.5 text-xs text-foreground-secondary hover:text-foreground-primary bg-surface-card hover:bg-surface-subtle border border-border px-2.5 py-1 rounded-[6px]"
+          title="Ver atalhos operacionais (?)"
+          aria-label="Atalhos operacionais de teclado (pressione ?)"
         >
-          <Keyboard className="w-3.5 h-3.5 text-foreground-muted" strokeWidth={1.8} />
+          <Keyboard className="w-3.5 h-3.5 text-foreground-muted" strokeWidth={1.8} aria-hidden="true" />
           <span className="hidden sm:inline">Atalhos</span>
-          <kbd className="text-[10px] font-mono border border-border bg-surface-subtle px-1 py-0.5 rounded-[4px] text-foreground-muted">
+          <kbd className="text-[10px] font-mono border border-border bg-surface-subtle px-1 py-0.5 rounded-[4px] text-foreground-muted" aria-hidden="true">
             ?
           </kbd>
         </button>

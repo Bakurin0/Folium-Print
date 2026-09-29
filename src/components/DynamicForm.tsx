@@ -18,15 +18,15 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
   const getFieldIcon = (type: string) => {
     switch (type) {
       case 'barcode':
-        return <Barcode className="w-3.5 h-3.5 text-foreground-muted" strokeWidth={1.8} />;
+        return <Barcode className="w-3.5 h-3.5 text-foreground-muted" strokeWidth={1.8} aria-hidden="true" />;
       case 'qrcode':
-        return <QrCode className="w-3.5 h-3.5 text-foreground-muted" strokeWidth={1.8} />;
+        return <QrCode className="w-3.5 h-3.5 text-foreground-muted" strokeWidth={1.8} aria-hidden="true" />;
       case 'date':
-        return <Calendar className="w-3.5 h-3.5 text-foreground-muted" strokeWidth={1.8} />;
+        return <Calendar className="w-3.5 h-3.5 text-foreground-muted" strokeWidth={1.8} aria-hidden="true" />;
       case 'number':
-        return <Hash className="w-3.5 h-3.5 text-foreground-muted" strokeWidth={1.8} />;
+        return <Hash className="w-3.5 h-3.5 text-foreground-muted" strokeWidth={1.8} aria-hidden="true" />;
       default:
-        return <Type className="w-3.5 h-3.5 text-foreground-muted" strokeWidth={1.8} />;
+        return <Type className="w-3.5 h-3.5 text-foreground-muted" strokeWidth={1.8} aria-hidden="true" />;
     }
   };
 
@@ -56,9 +56,12 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                   {getFieldIcon(field.type)}
                   <span>{field.label}</span>
                   {field.required && (
-                    <span className="text-neon-pink font-mono text-[10px]" title="Obrigatório">
-                      *
-                    </span>
+                    <>
+                      <span className="text-neon-pink font-mono text-[10px]" aria-hidden="true">
+                        *
+                      </span>
+                      <span className="sr-only">(obrigatório)</span>
+                    </>
                   )}
                 </label>
                 {field.barcodeFormat && (
@@ -77,15 +80,17 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                   onChange={(e) => onChangeField(field.key, e.target.value)}
                   placeholder={field.placeholder || `Informe ${field.label.toLowerCase()}`}
                   required={field.required}
+                  aria-required={field.required}
+                  aria-describedby={field.helperText ? `helper-${field.key}` : undefined}
                   min={field.min}
                   max={field.max}
                   step={field.step}
-                  className="w-full text-xs font-medium px-2.5 py-1.5 bg-surface-card border border-border rounded-[4px] placeholder:text-foreground-muted focus:outline-none focus:border-[#111111] focus:ring-1 focus:ring-[#111111] transition-all text-foreground-primary"
+                  className="w-full text-xs font-medium px-2.5 py-1.5 bg-surface-card border border-border rounded-[4px] placeholder:text-foreground-muted focus:outline-none focus:border-[#111111] focus:ring-1 focus:ring-[#111111] transition-[border-color,box-shadow] duration-snappy ease-out text-foreground-primary"
                 />
               </div>
 
               {field.helperText && (
-                <p className="text-[10px] text-foreground-muted">
+                <p id={`helper-${field.key}`} className="text-[10px] text-foreground-muted">
                   {field.helperText}
                 </p>
               )}

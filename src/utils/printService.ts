@@ -1,15 +1,17 @@
-import { Template, CalibrationOffset } from '../types/template';
+import { Template, CalibrationOffset, ColorAdjustments } from '../types/template';
 
 export interface PrintOptions {
   template: Template;
   htmlContent: string;
   offset: CalibrationOffset;
+  colorAdjustments?: ColorAdjustments;
 }
 
 export const executePixelPerfectPrint = ({
   template,
   htmlContent,
   offset,
+  colorAdjustments,
 }: PrintOptions): Promise<boolean> => {
   return new Promise((resolve, reject) => {
     try {
@@ -47,6 +49,19 @@ export const executePixelPerfectPrint = ({
 
       const widthMm = template.dimensions.widthMm;
       const heightMm = template.dimensions.heightMm;
+
+      // Compute color filter for print output
+      let filterCss = 'none';
+      if (colorAdjustments) {
+        const b = 1 + (colorAdjustments.brightness || 0) / 100;
+        const c = 1 + (colorAdjustments.contrast || 0) / 100;
+        const s = 1 + (colorAdjustments.saturation || 0) / 100;
+        const cmykEffect =
+          colorAdjustments.mode === 'cmyk-simulated'
+            ? 'sepia(0.04) hue-rotate(-2deg)'
+            : '';
+        filterCss = `brightness(${b}) contrast(${c}) saturate(${s}) ${cmykEffect}`.trim();
+      }
 
       // Build strictly calibrated CSS Paged Media document
       doc.open();
@@ -102,7 +117,7 @@ export const executePixelPerfectPrint = ({
             </style>
           </head>
           <body>
-            <div id="print-root" style="width:${widthMm}mm; height:${heightMm}mm; overflow:hidden;">
+            <div id="print-root" style="width:${widthMm}mm; height:${heightMm}mm; overflow:hidden; filter:${filterCss};">
               ${htmlContent}
             </div>
           </body>

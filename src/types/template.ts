@@ -83,3 +83,44 @@ export interface Template {
 
 export type CustomTemplateDefinition = Omit<Template, 'render'>;
 
+// Graphic Color Management
+export type ColorMode = 'rgb' | 'cmyk-simulated';
+
+export interface ColorAdjustments {
+  mode: ColorMode;
+  brightness: number; // -50 to +50
+  contrast: number;   // -50 to +50
+  saturation: number; // -50 to +50
+}
+
+// Automatic Crop Marks & Finishing (CorelDRAW Style)
+export interface CropMarkSettings {
+  enabled: boolean;
+  bleedMm: number; // e.g. 0 to 5 mm
+  showRegistrationMarks: boolean;
+  showGridMarks: boolean;
+  markLengthMm: number;
+}
+
+// Paper & Substrates
+export type PaperType =
+  | 'offset'
+  | 'couche-brilho'
+  | 'couche-fosco'
+  | 'kraft'
+  | 'adesivo-couche'
+  | 'adesivo-vinil'
+  | 'termico';
+
+export interface PaperSubstrate {
+  id: string;
+  name: string;
+  category: 'sheet' | 'roll';
+  widthMm: number;
+  heightMm: number;
+  paperType: PaperType;
+  weightGsm: number; // in g/m²
+  description?: string;
+  feedHint?: string;
+}
+
