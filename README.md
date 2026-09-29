@@ -3,7 +3,7 @@
 
   # Folium Print
 
-  *Composição vetorial e impressão física com calibração milimétrica de etiquetas e folhas A4*
+  *Composição vetorial, impressão física e calibração milimétrica*
 
   [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
   [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey.svg)](#)
