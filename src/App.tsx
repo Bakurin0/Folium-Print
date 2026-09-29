@@ -99,13 +99,15 @@ export const App: React.FC = () => {
     } catch {}
   }, [isHomeOpen]);
 
-  // 6.6 Transição Cinemática 3D entre Home e Editor via GSAP
+  // 6.6 Transição Cinemática entre Home e Editor via GSAP
   const isInitialMount = useRef(true);
   const viewContainerRef = useRef<HTMLDivElement>(null);
+  const prevIsHomeOpen = useRef(isHomeOpen);
 
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
+      prevIsHomeOpen.current = isHomeOpen;
       return;
     }
 
@@ -114,6 +116,12 @@ export const App: React.FC = () => {
     // Respeita acessibilidade (prefers-reduced-motion)
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (prefersReducedMotion) return;
+
+    // Previne re-execução duplicada se isHomeOpen não mudou
+    if (prevIsHomeOpen.current === isHomeOpen) {
+      return;
+    }
+    prevIsHomeOpen.current = isHomeOpen;
 
     if (isHomeOpen) {
       // Editor -> Home: Afastamento em profundidade (Zoom Out Z)
@@ -135,32 +143,24 @@ export const App: React.FC = () => {
           clearProps: 'transform,filter,opacity',
         }
       );
-    } else if (isPrinterBooting) {
-      // Quando a animação tátil da impressora está em execução, mantemos o canvas
-      // estável no plano zero para que a fusão contínua ocorra sem saltos de matriz
-      gsap.set(viewContainerRef.current, { clearProps: 'transform,filter,opacity' });
     } else {
-      // Home -> Editor: Mergulho na prancheta (Zoom In Z)
+      // Home -> Editor: Entrada contínua suave (0 -> 1 em 400ms) sem duplo piscar
       gsap.fromTo(
         viewContainerRef.current,
         {
           opacity: 0,
-          scale: 0.95,
-          z: -50,
-          filter: 'blur(4px)',
+          scale: 0.98,
         },
         {
           opacity: 1,
           scale: 1,
-          z: 0,
-          filter: 'blur(0px)',
           duration: 0.4,
           ease: 'power2.out',
-          clearProps: 'transform,filter,opacity',
+          clearProps: 'transform,opacity',
         }
       );
     }
-  }, [isHomeOpen, isPrinterBooting]);
+  }, [isHomeOpen]);
 
   // Seleção de modelo com transição tátil mecânica da impressora para o editor
   const handleSelectTemplate = useCallback(
@@ -170,7 +170,6 @@ export const App: React.FC = () => {
       if (isHomeOpen) {
         setBootingTemplate(target);
         setIsPrinterBooting(true);
-        setIsHomeOpen(false);
       }
     },
     [selectTemplate, isHomeOpen, templates]
@@ -310,7 +309,11 @@ export const App: React.FC = () => {
         <PrinterBootAnimation
           activeTemplate={bootingTemplate || currentTemplate}
           formData={formData}
+          onRevealStudio={() => {
+            setIsHomeOpen(false);
+          }}
           onComplete={() => {
+            setIsHomeOpen(false);
             setIsPrinterBooting(false);
             setBootingTemplate(null);
           }}

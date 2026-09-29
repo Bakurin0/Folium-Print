@@ -5,21 +5,25 @@ import { Template, TemplateFormData } from '../types/template';
 interface PrinterBootAnimationProps {
   activeTemplate: Template | null;
   formData: TemplateFormData;
+  onRevealStudio?: () => void;
   onComplete: () => void;
 }
 
 /**
  * Animação Tátil de Boot: "A Impressora Térmica Ligando"
  * Construída com GSAP seguindo os princípios de Design Engineering de Emil Kowalski:
+ * - Impressora perfeitamente centralizada na tela
  * - Metáfora física do motor de passo (stepper motor) com tração escalonada do papel
  * - LED industrial de calibração térmica (âmbar -> verde)
- * - Ejeção real dos dados e código de barras da etiqueta
- * - O chassi da impressora se expande e se transforma na barra de ferramentas do estúdio
+ * - Ejeção real dos dados e código de barras da etiqueta através da guilhotina com clip-mask
+ * - Crossfade simultâneo contínuo de 400ms: impressora dissolve enquanto estúdio surge por baixo
+ * - Timeline blindada contra re-renders do React
  * - Totalmente interrompível via tecla Esc ou clique
  */
 export const PrinterBootAnimation: React.FC<PrinterBootAnimationProps> = ({
   activeTemplate,
   formData,
+  onRevealStudio,
   onComplete,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -31,6 +35,11 @@ export const PrinterBootAnimation: React.FC<PrinterBootAnimationProps> = ({
   const ledRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
 
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+  const onRevealStudioRef = useRef(onRevealStudio);
+  onRevealStudioRef.current = onRevealStudio;
+
   const [isDone, setIsDone] = useState(false);
 
   // Encerramento instantâneo e seguro
@@ -40,8 +49,9 @@ export const PrinterBootAnimation: React.FC<PrinterBootAnimationProps> = ({
     if (timelineRef.current) {
       timelineRef.current.kill();
     }
-    onComplete();
-  }, [isDone, onComplete]);
+    onRevealStudioRef.current?.();
+    onCompleteRef.current();
+  }, [isDone]);
 
   // Atalho de teclado para pular
   useEffect(() => {
@@ -55,12 +65,13 @@ export const PrinterBootAnimation: React.FC<PrinterBootAnimationProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleSkip]);
 
-  // Timeline GSAP de Boot e Tração Mecânica
+  // Timeline GSAP de Boot e Tração Mecânica (Blindada contra reinício acidental)
   useEffect(() => {
     // Respeita prefers-reduced-motion
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (prefersReducedMotion) {
-      onComplete();
+      onRevealStudioRef.current?.();
+      onCompleteRef.current();
       return;
     }
 
@@ -68,7 +79,7 @@ export const PrinterBootAnimation: React.FC<PrinterBootAnimationProps> = ({
       const tl = gsap.timeline({
         onComplete: () => {
           setIsDone(true);
-          onComplete();
+          onCompleteRef.current();
         },
       });
 
@@ -155,32 +166,26 @@ export const PrinterBootAnimation: React.FC<PrinterBootAnimationProps> = ({
       }, '<');
 
       // Pausa táctil para leitura e reconhecimento da etiqueta impressa
-      tl.to({}, { duration: 0.26 });
+      tl.to({}, { duration: 0.28 });
 
-      // 5. Transição Contínua Dupla (Emil Kowalski Design Engineering):
-      // - Chassi frontal sobe suavemente em direção à Toolbar superior com blur(2px)
-      // - Etiqueta desliza até o centro da tela onde o StudioCanvas está montado
-      // - Fundo desfocado desvanece revelando o estúdio ativo
-      tl.to(chassisFaceRef.current, {
-        y: -36,
-        scale: 0.98,
+      // 5. Crossfade Simultâneo Contínuo (Emil Kowalski Design Engineering):
+      // No exato início do desvanecimento do modal, o estúdio começa a surgir por baixo
+      tl.call(() => {
+        onRevealStudioRef.current?.();
+      });
+
+      // O conjunto térmico central desvanece suavemente em 400ms em paralelo
+      tl.to(assemblyRef.current, {
+        scale: 0.97,
         opacity: 0,
-        filter: 'blur(2px)',
-        duration: 0.48,
-        ease: easeOutQuint,
+        filter: 'blur(3px)',
+        duration: 0.4,
+        ease: 'power2.inOut',
       })
-      .to(paperRef.current, {
-        y: 130,
-        scale: 1.03,
-        opacity: 0,
-        filter: 'blur(2px)',
-        duration: 0.48,
-        ease: easeOutQuint,
-      }, '<')
       .to(containerRef.current, {
         opacity: 0,
         backdropFilter: 'blur(0px)',
-        duration: 0.48,
+        duration: 0.4,
         ease: 'power2.out',
       }, '<');
 
@@ -189,7 +194,7 @@ export const PrinterBootAnimation: React.FC<PrinterBootAnimationProps> = ({
     return () => {
       ctx.revert();
     };
-  }, [onComplete]);
+  }, []);
 
   if (isDone) return null;
 
@@ -208,7 +213,7 @@ export const PrinterBootAnimation: React.FC<PrinterBootAnimationProps> = ({
       role="dialog"
       aria-label="Inicialização da impressora térmica"
       onClick={handleSkip}
-      className="fixed inset-0 z-[120] flex flex-col items-center justify-start bg-surface-app/90 backdrop-blur-md select-none cursor-pointer overflow-hidden will-change-[opacity,backdrop-filter]"
+      className="fixed inset-0 z-[120] flex flex-col items-center justify-center p-4 bg-surface-app/80 backdrop-blur-md select-none cursor-pointer overflow-hidden will-change-[opacity,backdrop-filter]"
     >
       {/* Indicador de Atalho Esc com física táctil no active */}
       <button
@@ -225,10 +230,10 @@ export const PrinterBootAnimation: React.FC<PrinterBootAnimationProps> = ({
         </span>
       </button>
 
-      {/* Conjunto Mecânico da Impressora Térmica */}
+      {/* Conjunto Mecânico da Impressora Térmica Centralizado */}
       <div
         ref={assemblyRef}
-        className="relative mt-8 sm:mt-12 w-[340px] sm:w-[460px] md:w-[540px] flex flex-col items-center z-20 will-change-transform"
+        className="relative w-[340px] sm:w-[460px] md:w-[540px] flex flex-col items-center z-20 will-change-transform"
       >
         {/* Chassi Frontal: Carcaça da Impressora, LED e Painel */}
         <div
