@@ -66,8 +66,8 @@ export const createDynamicRenderer = (template: CustomTemplateDefinition) => {
             return null;
           }
 
-          const vAlign = field.verticalAlign || ((field.heightMm ?? 8) >= 14 ? 'top' : 'middle');
-          const justifyContent = vAlign === 'top' ? 'flex-start' : vAlign === 'bottom' ? 'flex-end' : 'center';
+          const vAlign = field.verticalAlign || 'top';
+          const justifyContent = vAlign === 'bottom' ? 'flex-end' : vAlign === 'middle' ? 'center' : 'flex-start';
 
           return (
             <div
@@ -87,7 +87,7 @@ export const createDynamicRenderer = (template: CustomTemplateDefinition) => {
                 flexDirection: 'column',
                 justifyContent,
                 border: field.showBorder ? '0.5px solid #000000' : 'none',
-                padding: field.showBorder ? '0.5mm' : '0mm',
+                padding: field.showBorder ? '0.5mm' : '0.2mm',
               }}
             >
               {field.type === 'svg' ? (
@@ -122,16 +122,22 @@ export const createDynamicRenderer = (template: CustomTemplateDefinition) => {
                   />
                 </div>
               ) : (
-                <div className="w-full text-black break-words whitespace-pre-wrap leading-snug">
+                <div
+                  className="w-full text-black break-words whitespace-pre-wrap"
+                  style={{
+                    lineHeight: '1.25',
+                    wordBreak: 'break-word',
+                  }}
+                >
                   {field.showLabel && (
                     <span className={`mr-1 ${!val && isPreview ? 'opacity-40' : ''}`}>
                       {field.label.endsWith(':') ? field.label : `${field.label}:`}
                     </span>
                   )}
                   {val ? (
-                    <span className="break-words leading-snug">{String(val)}</span>
+                    <span className="break-words">{String(val)}</span>
                   ) : isPreview ? (
-                    <span className="break-words leading-snug opacity-30 italic font-normal">
+                    <span className="break-words opacity-30 italic font-normal">
                       {field.placeholder || field.defaultValue || '—'}
                     </span>
                   ) : null}

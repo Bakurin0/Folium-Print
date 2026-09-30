@@ -343,12 +343,13 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       newW = Math.round(newW * 2) / 2;
       newH = Math.round(newH * 2) / 2;
 
-      // Escalar proporcionalmente o tamanho da fonte com teto seguro baseado na altura da caixa em mm
+      // Escalar proporcionalmente o tamanho da fonte apenas quando autoScaleFont for explicitamente ativado,
+      // respeitando um teto de segurança (máx 16pt) para evitar distorção tipográfica em etiquetas térmicas.
       const targetField = template.fields.find((f) => f.key === selectedFieldKey);
       let calculatedFontSizePt: number | undefined = undefined;
       if (
         targetField &&
-        targetField.autoScaleFont !== false &&
+        targetField.autoScaleFont === true &&
         targetField.type !== 'barcode' &&
         targetField.type !== 'qrcode' &&
         targetField.type !== 'svg'
@@ -357,7 +358,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
         if (initFontSize > 0) {
           const maxHeightPt = Math.floor(newH * 2.83 * 0.75);
           const scaledPt = Math.round(initFontSize * ratio * 2) / 2;
-          calculatedFontSizePt = Math.max(5, Math.min(maxHeightPt, scaledPt));
+          calculatedFontSizePt = Math.max(5, Math.min(maxHeightPt, 16, scaledPt));
         }
       }
 
@@ -446,6 +447,18 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
                     }
                   }}
                 >
+                  {/* Guia visual sutil de Margem de Segurança (Safe Area de 2mm para cabeçotes térmicos) */}
+                  <div
+                    className="absolute pointer-events-none border border-dashed border-[#3a86ff]/20 rounded-[1px]"
+                    style={{
+                      left: '2mm',
+                      top: '2mm',
+                      right: '2mm',
+                      bottom: '2mm',
+                    }}
+                    title="Margem técnica recomendada de 2mm"
+                  />
+
                   {template.fields.map((field) => {
                     const isSelected = selectedFieldKey === field.key;
                     const isDraggingThis = activeDraggingKey === field.key;

@@ -252,6 +252,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
       fontSizePt: 8.5,
       fontWeight: 'normal',
       textAlign: 'left',
+      autoScaleFont: false,
       showBorder: false,
       showLabel: type === 'text' || isDate,
       barcodeFormat: type === 'barcode' ? 'CODE128' : undefined,
@@ -395,22 +396,22 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
       newW = Math.round(newW * 2) / 2;
       newH = Math.round(newH * 2) / 2;
 
-      // Ajuste proporcional controlado da fonte (com teto baseado na altura real da caixa para nunca vazar)
+      // Ajuste proporcional controlado da fonte apenas se autoScaleFont for explicitamente ativado
       const targetField = fields.find((f) => f.key === selectedFieldKey);
       let calculatedFontSizePt: number | undefined = undefined;
       if (
         targetField &&
-        targetField.autoScaleFont !== false &&
+        targetField.autoScaleFont === true &&
         targetField.type !== 'barcode' &&
         targetField.type !== 'qrcode' &&
         targetField.type !== 'svg'
       ) {
         const ratio = newH / initH;
         if (initFontSize > 0) {
-          // Altura em pontos: 1mm ≈ 2.83pt. O teto absoluto de uma linha de texto deve ser ~70% da altura da caixa em mm convertido para pt
+          // Altura em pontos: 1mm ≈ 2.83pt. Limite seguro de 16pt para evitar desproporção visual
           const maxHeightPt = Math.floor(newH * 2.83 * 0.75);
           const scaledPt = Math.round(initFontSize * ratio * 2) / 2;
-          calculatedFontSizePt = Math.max(5, Math.min(maxHeightPt, scaledPt));
+          calculatedFontSizePt = Math.max(5, Math.min(maxHeightPt, 16, scaledPt));
         }
       }
 
@@ -875,8 +876,8 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                   const wPx = (field.widthMm ?? 30) * MM_TO_PX * canvasZoom;
                   const hPx = (field.heightMm ?? 10) * MM_TO_PX * canvasZoom;
 
-                  const vAlign = field.verticalAlign || ((field.heightMm ?? 8) >= 14 ? 'top' : 'middle');
-                  const justifyClass = vAlign === 'top' ? 'justify-start pt-1' : vAlign === 'bottom' ? 'justify-end pb-1' : 'justify-center';
+                  const vAlign = field.verticalAlign || 'top';
+                  const justifyClass = vAlign === 'bottom' ? 'justify-end pb-1' : vAlign === 'middle' ? 'justify-center' : 'justify-start pt-0.5';
 
                   return (
                     <div
@@ -976,10 +977,12 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                           <div
                             style={{
                               textAlign: field.textAlign || 'left',
-                              fontSize: `${(field.fontSizePt || 8.5) * canvasZoom * 0.9}px`,
+                              fontSize: `${(field.fontSizePt || 8.5) * canvasZoom * 1.333}px`,
                               fontWeight: normalizeFontWeight(field.fontWeight, defaultFontWeight),
+                              lineHeight: '1.25',
+                              wordBreak: 'break-word',
                             }}
-                            className="w-full max-h-full overflow-hidden break-words whitespace-pre-wrap leading-tight text-black"
+                            className="w-full max-h-full overflow-hidden break-words whitespace-pre-wrap text-black"
                           >
                             {field.showLabel && (
                               <span className="mr-1">
@@ -1274,6 +1277,33 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                         </div>
                       </div>
 
+                      {/* Presets Rápidos de Tamanho Tipográfico */}
+                      <div className="flex items-center justify-between pt-1 border-t border-black/[0.04]">
+                        <span className="text-[10px] text-foreground-muted">Presets:</span>
+                        <div className="flex items-center gap-1">
+                          {[
+                            { label: '8pt', value: 8, tip: 'Pequeno / Dados' },
+                            { label: '10pt', value: 10, tip: 'Médio / Padrão' },
+                            { label: '14pt', value: 14, tip: 'Grande / Destaque' },
+                            { label: '18pt', value: 18, tip: 'Título' },
+                          ].map((p) => (
+                            <button
+                              key={p.value}
+                              type="button"
+                              onClick={() => handleUpdateField(selectedField.key, { fontSizePt: p.value })}
+                              className={`px-1.5 py-0.5 text-[9.5px] rounded-[4px] border transition-colors ${
+                                selectedField.fontSizePt === p.value
+                                  ? 'bg-[#3a86ff] text-white border-[#3a86ff] font-semibold'
+                                  : 'bg-white text-foreground-secondary border-border/80 hover:bg-black/[0.04]'
+                              }`}
+                              title={p.tip}
+                            >
+                              {p.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
                       {/* Seletor de Peso da Fonte */}
                       <div className="flex items-center justify-between pt-1.5 border-t border-black/[0.05]">
                         <span className="text-[10.5px] font-medium text-foreground-secondary">
@@ -1384,7 +1414,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                         <label className="flex items-center gap-2 cursor-pointer text-foreground-primary">
                           <input
                             type="checkbox"
-                            checked={selectedField.autoScaleFont !== false}
+                            checked={selectedField.autoScaleFont === true}
                             onChange={(e) =>
                               handleUpdateField(selectedField.key, { autoScaleFont: e.target.checked })
                             }

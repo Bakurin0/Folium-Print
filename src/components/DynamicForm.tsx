@@ -167,7 +167,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                   className="font-medium text-foreground-primary flex items-center gap-1.5 text-[11px] cursor-pointer"
                 >
                   {getFieldIcon(field.type, isMultiline)}
-                  <span>{field.label}</span>
+                  <span>{field.label?.trim() || `Campo ${idx + 1}`}</span>
                   {field.required && (
                     <span className="text-[#ff006e] font-mono text-[10px]" title="Campo obrigatório">
                       *
