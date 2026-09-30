@@ -9,6 +9,7 @@ import { InspectorPanel, InspectorTab } from './components/InspectorPanel';
 import { HomeDashboard } from './components/HomeDashboard';
 import { PrinterBootAnimation } from './components/PrinterBootAnimation';
 import { executePixelPerfectPrint } from './utils/printService';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 // Carregamento sob demanda (code-splitting dinâmico) para modais secundários
 const ShortcutsModal = lazy(() => import('./components/ShortcutsModal').then(m => ({ default: m.ShortcutsModal })));
@@ -579,6 +580,9 @@ export const App: React.FC = () => {
           <span>{toastState.message}</span>
         </div>
       )}
+
+      {/* Vercel Speed Insights */}
+      <SpeedInsights />
     </div>
   );
 };
