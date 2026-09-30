@@ -210,7 +210,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                           const token = '{copia}/{total}';
                           onChangeField(field.key, current ? `${current} ${token}` : token);
                         }}
-                        className="btn-tactile text-[9.5px] font-mono text-foreground-muted hover:text-foreground-primary hover:bg-black/[0.04] active:scale-95 px-1.5 py-0.5 rounded-[4px] flex items-center gap-1 transition-all"
+                        className="btn-tactile text-[9.5px] font-mono text-foreground-muted hover:text-foreground-primary hover:bg-black/[0.04] px-1.5 py-0.5 rounded-[4px] flex items-center gap-1"
                         title="Inserir identificador automático de volume ({copia}/{total})"
                       >
                         <span>+{'{copia}/{total}'}</span>
@@ -230,7 +230,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                       onClick={() => {
                         onChangeField(field.key, field.type === 'date' ? getTodayIso() : getTodayFormatted(field.dateFormat, field.datePrefix));
                       }}
-                      className="btn-tactile text-[9.5px] font-medium text-foreground-muted hover:text-foreground-primary hover:bg-black/[0.04] active:scale-[0.96] px-1.5 py-0.5 rounded-[4px] flex items-center gap-1 transition-all"
+                      className="btn-tactile text-[9.5px] font-medium text-foreground-muted hover:text-foreground-primary hover:bg-black/[0.04] px-1.5 py-0.5 rounded-[4px] flex items-center gap-1"
                       title="Preencher com a data de hoje"
                     >
                       <CalendarCheck className="w-3 h-3 text-[#fb5607]" />
@@ -274,7 +274,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                       required={field.required}
                       aria-required={field.required}
                       aria-describedby={field.helperText ? `helper-${field.key}` : undefined}
-                      className="w-full text-xs font-medium p-2 pr-7 bg-black/[0.025] hover:bg-black/[0.04] focus:bg-white border border-black/[0.08] focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/20 rounded-[6px] placeholder:text-foreground-muted outline-none transition-all duration-snappy text-foreground-primary resize-none leading-relaxed"
+                      className="w-full text-xs font-medium p-2 pr-7 bg-black/[0.025] hover:bg-black/[0.04] focus:bg-white border border-black/[0.08] focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/20 rounded-[6px] placeholder:text-foreground-muted outline-none transition-[background-color,border-color,box-shadow] duration-instant ease-emil-out text-foreground-primary resize-none leading-relaxed"
                     />
                     {hasValue && (
                       <button
@@ -313,7 +313,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                       min={field.min}
                       max={field.max}
                       step={field.step}
-                      className="w-full text-xs font-medium px-2.5 pr-7 h-8 bg-black/[0.025] hover:bg-black/[0.04] focus:bg-white border border-black/[0.08] focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/20 rounded-[6px] placeholder:text-foreground-muted outline-none transition-all duration-snappy text-foreground-primary"
+                      className="w-full text-xs font-medium px-2.5 pr-7 h-8 bg-black/[0.025] hover:bg-black/[0.04] focus:bg-white border border-black/[0.08] focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/20 rounded-[6px] placeholder:text-foreground-muted outline-none transition-[background-color,border-color,box-shadow] duration-instant ease-emil-out text-foreground-primary"
                     />
                     {hasValue && (
                       <button

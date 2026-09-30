@@ -211,6 +211,38 @@
     opacity: 1 !important;
     transform: none !important;
   }
+
+  .badge-tooltip-popover {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+}
+
+/* Floating Origin-Aware Badge/Tooltip Popover (Emil Kowalski Philosophy) */
+@keyframes popoverEnter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+.badge-tooltip-popover {
+  animation: popoverEnter var(--duration-instant) var(--ease-out) forwards;
+  will-change: transform, opacity;
+}
+
+/* Touch Device Hover Protection: Evita hover preso em dispositivos touchscreen */
+@media not all and (hover: hover) and (pointer: fine) {
+  .hover\:scale-105:hover,
+  .hover\:scale-110:hover,
+  .hover\:scale-125:hover,
+  .group:hover .group-hover\:scale-105 {
+    transform: none !important;
+  }
 }
 
 /* ==========================================================================

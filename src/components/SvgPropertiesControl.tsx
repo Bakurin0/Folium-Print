@@ -80,7 +80,7 @@ export const SvgPropertiesControl: React.FC<SvgPropertiesControlProps> = ({
           <span>{label}</span>
         </span>
         <div className="flex items-center gap-1.5">
-          <label className="btn-tactile cursor-pointer text-[10.5px] font-medium text-[#3a86ff] hover:bg-[#3a86ff]/10 active:scale-[0.96] px-2 py-0.5 rounded-[4px] border border-[#3a86ff]/20 flex items-center gap-1 transition-all">
+          <label className="btn-tactile cursor-pointer text-[10.5px] font-medium text-[#3a86ff] hover:bg-[#3a86ff]/10 px-2 py-0.5 rounded-[4px] border border-[#3a86ff]/20 flex items-center gap-1">
             <Upload className="w-3 h-3" />
             <span>Subir .svg</span>
             <input
@@ -94,7 +94,7 @@ export const SvgPropertiesControl: React.FC<SvgPropertiesControlProps> = ({
             <button
               type="button"
               onClick={onRemove}
-              className="btn-tactile text-[10.5px] font-medium text-feedback-error hover:bg-feedback-error/10 active:scale-[0.96] px-1.5 py-0.5 rounded-[4px] border border-feedback-error/20 flex items-center gap-0.5 transition-all"
+              className="btn-tactile text-[10.5px] font-medium text-feedback-error hover:bg-feedback-error/10 px-1.5 py-0.5 rounded-[4px] border border-feedback-error/20 flex items-center gap-0.5"
               title="Remover SVG"
             >
               <Trash2 className="w-3 h-3" />
@@ -120,7 +120,7 @@ export const SvgPropertiesControl: React.FC<SvgPropertiesControlProps> = ({
               <button
                 type="button"
                 onClick={handleRotate}
-                className="btn-tactile px-2 py-1 bg-surface-subtle hover:bg-black/[0.05] active:scale-[0.96] rounded-[4px] border border-border text-[10.5px] font-medium text-foreground-primary flex items-center gap-1 transition-all"
+                className="btn-tactile px-2 py-1 bg-surface-subtle hover:bg-black/[0.05] rounded-[4px] border border-border text-[10.5px] font-medium text-foreground-primary flex items-center gap-1"
                 title="Girar 90 graus no sentido horário"
               >
                 <RotateCw className="w-3 h-3 text-foreground-muted" />
@@ -130,7 +130,7 @@ export const SvgPropertiesControl: React.FC<SvgPropertiesControlProps> = ({
               <button
                 type="button"
                 onClick={() => onChangeFlipH(!flipH)}
-                className={`btn-tactile px-2 py-1 active:scale-[0.96] rounded-[4px] border text-[10.5px] font-medium flex items-center gap-1 transition-all ${
+                className={`btn-tactile px-2 py-1 rounded-[4px] border text-[10.5px] font-medium flex items-center gap-1 ${
                   flipH
                     ? 'bg-[#3a86ff]/15 border-[#3a86ff] text-[#3a86ff]'
                     : 'bg-surface-subtle hover:bg-black/[0.05] border-border text-foreground-primary'
@@ -144,7 +144,7 @@ export const SvgPropertiesControl: React.FC<SvgPropertiesControlProps> = ({
               <button
                 type="button"
                 onClick={() => onChangeFlipV(!flipV)}
-                className={`btn-tactile px-2 py-1 active:scale-[0.96] rounded-[4px] border text-[10.5px] font-medium flex items-center gap-1 transition-all ${
+                className={`btn-tactile px-2 py-1 rounded-[4px] border text-[10.5px] font-medium flex items-center gap-1 ${
                   flipV
                     ? 'bg-[#3a86ff]/15 border-[#3a86ff] text-[#3a86ff]'
                     : 'bg-surface-subtle hover:bg-black/[0.05] border-border text-foreground-primary'
@@ -172,7 +172,7 @@ export const SvgPropertiesControl: React.FC<SvgPropertiesControlProps> = ({
                 key={c.value}
                 type="button"
                 onClick={() => onChangeFill(c.value)}
-                className={`btn-tactile text-[9.5px] px-1.5 py-0.5 rounded-[4px] border flex items-center gap-1 transition-all active:scale-[0.96] ${
+                className={`btn-tactile text-[9.5px] px-1.5 py-0.5 rounded-[4px] border flex items-center gap-1 ${
                   isSelected
                     ? 'border-[#3a86ff] ring-1 ring-[#3a86ff] font-semibold text-foreground-primary bg-white'
                     : 'border-border/80 text-foreground-muted hover:text-foreground-primary hover:bg-white'

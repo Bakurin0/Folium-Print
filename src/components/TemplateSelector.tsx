@@ -87,7 +87,7 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
                 <button
                   type="button"
                   onClick={() => onSelectTemplate(tpl.id)}
-                  className="flex items-start gap-2.5 flex-1 min-w-0 text-left active:scale-[0.99] transition-transform duration-snappy ease-emil-out"
+                  className="flex items-start gap-2.5 flex-1 min-w-0 text-left active:scale-[0.97] transition-transform duration-snappy ease-emil-out"
                 >
                   <div
                     className={`mt-0.5 p-1.5 rounded-[5px] shrink-0 border transition-colors duration-snappy ease-emil-out ${

@@ -180,7 +180,7 @@ export const CalibrationPanel: React.FC<CalibrationPanelProps> = ({
                         key={model}
                         type="button"
                         onClick={() => onChangePrinterName?.(model)}
-                        className={`btn-tactile text-[10px] px-2 py-0.5 rounded-[4px] border font-medium transition-all active:scale-[0.97] ${
+                        className={`btn-tactile text-[10px] px-2 py-0.5 rounded-[4px] border font-medium ${
                           isSelected
                             ? 'bg-[#3a86ff]/10 text-[#3a86ff] border-[#3a86ff]/30 font-semibold shadow-xs'
                             : 'bg-white hover:bg-surface-subtle text-foreground-secondary border-border/80'

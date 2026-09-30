@@ -57,7 +57,7 @@ export const FontWeightControl: React.FC<FontWeightControlProps> = ({
             style={{ fontWeight: preset.numericWeight }}
             className={`
               relative btn-tactile rounded-[4.5px] transition-colors transition-transform duration-snappy ease-out
-              active:scale-[0.96] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#111111]
+              active:scale-[0.97] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#111111]
               flex items-center justify-center font-sans tracking-tight
               ${
                 isSmall

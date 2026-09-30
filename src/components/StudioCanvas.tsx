@@ -510,8 +510,8 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
                         {/* Badge de Dimensões e Posição (visível ao selecionar, arrastar ou redimensionar) */}
                         {(isSelected || isDraggingThis || isResizingThis) && (
                           <div
-                            className={`absolute left-1/2 -translate-x-1/2 bg-[#111111] text-white font-mono text-[9px] px-2 py-0.5 rounded-[5px] shadow-subtle flex items-center gap-1.5 whitespace-nowrap pointer-events-none z-50 transition-all ${
-                              fy < 7 ? 'top-full mt-2.5' : '-top-7'
+                            className={`badge-tooltip-popover absolute left-1/2 -translate-x-1/2 bg-[#111111] text-white font-mono text-[9px] px-2 py-0.5 rounded-[5px] shadow-subtle flex items-center gap-1.5 whitespace-nowrap pointer-events-none z-50 ${
+                              fy < 7 ? 'top-full mt-2.5 origin-top' : '-top-7 origin-bottom'
                             }`}
                           >
                             {field.locked && <Lock className="w-2.5 h-2.5 text-[#ef4444]" />}

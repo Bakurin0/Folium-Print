@@ -40,7 +40,7 @@ const SidebarLabelMiniature: React.FC<{ widthMm: number; heightMm: number; grid?
 
   return (
     <div
-      className="w-7 h-7 rounded-[6px] bg-black/[0.04] border border-black/[0.06] flex items-center justify-center shrink-0 group-hover:bg-white group-hover:shadow-2xs transition-all duration-snappy mt-0.5"
+      className="w-7 h-7 rounded-[6px] bg-black/[0.04] border border-black/[0.06] flex items-center justify-center shrink-0 group-hover:bg-white group-hover:shadow-2xs transition-[background-color,box-shadow] duration-snappy ease-emil-out mt-0.5"
       aria-hidden="true"
     >
       <div
@@ -125,7 +125,7 @@ export const ModelsSidebar: React.FC<ModelsSidebarProps> = ({
     <aside
       aria-label="Biblioteca de Modelos"
       aria-hidden={!isOpen}
-      className={`h-full border-black/[0.06] bg-[#fbfbfa] flex flex-col shrink-0 z-20 transition-all duration-snappy ease-out select-none overflow-hidden ${
+      className={`h-full border-black/[0.06] bg-[#fbfbfa] flex flex-col shrink-0 z-20 transition-[width,opacity] duration-snappy ease-emil-out select-none overflow-hidden ${
         isOpen
           ? 'w-72 xl:w-80 border-r opacity-100 pointer-events-auto'
           : 'w-0 border-r-0 opacity-0 pointer-events-none'
@@ -147,7 +147,7 @@ export const ModelsSidebar: React.FC<ModelsSidebarProps> = ({
         <button
           type="button"
           onClick={onOpenCreateModal}
-          className="btn-tactile px-2.5 py-1 text-xs font-medium text-foreground-primary hover:bg-black/[0.04] rounded-[7px] border border-black/[0.08] bg-surface-card flex items-center gap-1 shadow-2xs transition-all duration-snappy"
+          className="btn-tactile px-2.5 py-1 text-xs font-medium text-foreground-primary hover:bg-black/[0.04] rounded-[7px] border border-black/[0.08] bg-surface-card flex items-center gap-1 shadow-2xs"
           title="Criar novo modelo em branco"
         >
           <Plus className="w-3.5 h-3.5 text-[#3a86ff]" strokeWidth={2.5} />
@@ -165,7 +165,7 @@ export const ModelsSidebar: React.FC<ModelsSidebarProps> = ({
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar modelos..."
             aria-label="Buscar modelos por nome ou dimensão"
-            className="w-full pl-8 pr-14 h-7 text-xs bg-black/[0.035] hover:bg-black/[0.05] focus:bg-white border border-black/[0.06] focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/20 rounded-[7px] transition-all outline-none placeholder:text-foreground-muted"
+            className="w-full pl-8 pr-14 h-7 text-xs bg-black/[0.035] hover:bg-black/[0.05] focus:bg-white border border-black/[0.06] focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/20 rounded-[7px] transition-[background-color,border-color,box-shadow] duration-instant ease-emil-out outline-none placeholder:text-foreground-muted"
           />
           {searchQuery ? (
             <button
@@ -212,7 +212,7 @@ export const ModelsSidebar: React.FC<ModelsSidebarProps> = ({
             return (
               <div
                 key={tpl.id}
-                className={`group relative rounded-[8px] transition-all duration-snappy ${
+                className={`group relative rounded-[8px] transition-[background-color,box-shadow] duration-snappy ease-emil-out ${
                   isSelected
                     ? 'bg-white shadow-[0_1px_3px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.08)]'
                     : 'hover:bg-black/[0.03] text-foreground-secondary'
@@ -221,7 +221,7 @@ export const ModelsSidebar: React.FC<ModelsSidebarProps> = ({
                 <button
                   type="button"
                   onClick={() => onSelectTemplate(tpl.id)}
-                  className="w-full p-2.5 text-left flex items-start gap-2.5 active:scale-[0.985] transition-transform duration-120"
+                  className="w-full p-2.5 text-left flex items-start gap-2.5 active:scale-[0.97] transition-transform duration-120"
                 >
                   <SidebarLabelMiniature
                     widthMm={tpl.dimensions.widthMm}

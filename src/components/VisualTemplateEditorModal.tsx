@@ -579,7 +579,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
             <button
               type="button"
               onClick={() => handleAddField('text')}
-              className="btn-tactile h-7 px-2 text-[11px] font-medium text-foreground-primary hover:bg-surface-card rounded-[5px] flex items-center gap-1.5 whitespace-nowrap active:scale-[0.96] transition-all group"
+              className="btn-tactile h-7 px-2 text-[11px] font-medium text-foreground-primary hover:bg-surface-card rounded-[5px] flex items-center gap-1.5 whitespace-nowrap group"
             >
               <Type className="w-3.5 h-3.5 text-foreground-muted group-hover:text-foreground-primary shrink-0 transition-colors" strokeWidth={1.8} />
               <span>Texto</span>
@@ -597,7 +597,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                   heightMm: 6,
                 })
               }
-              className="btn-tactile h-7 px-2 text-[11px] font-medium text-foreground-primary hover:bg-surface-card rounded-[5px] flex items-center gap-1.5 whitespace-nowrap active:scale-[0.96] transition-all group"
+              className="btn-tactile h-7 px-2 text-[11px] font-medium text-foreground-primary hover:bg-surface-card rounded-[5px] flex items-center gap-1.5 whitespace-nowrap group"
               title="Adicionar campo com identificador de cópias/volumes ({copia}/{total})"
             >
               <Copy className="w-3.5 h-3.5 text-foreground-muted group-hover:text-foreground-primary shrink-0 transition-colors" strokeWidth={1.8} />
@@ -617,7 +617,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                   heightMm: 6,
                 })
               }
-              className="btn-tactile h-7 px-2 text-[11px] font-medium text-foreground-primary hover:bg-surface-card rounded-[5px] flex items-center gap-1.5 whitespace-nowrap active:scale-[0.96] transition-all group"
+              className="btn-tactile h-7 px-2 text-[11px] font-medium text-foreground-primary hover:bg-surface-card rounded-[5px] flex items-center gap-1.5 whitespace-nowrap group"
               title="Adicionar campo de data com dia, mês e ano automáticos"
             >
               <Calendar className="w-3.5 h-3.5 text-foreground-muted group-hover:text-[#fb5607] shrink-0 transition-colors" strokeWidth={1.8} />
@@ -626,7 +626,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
             <button
               type="button"
               onClick={() => handleAddField('barcode', { barcodeFormat: 'CODE128' })}
-              className="btn-tactile h-7 px-2 text-[11px] font-medium text-foreground-primary hover:bg-surface-card rounded-[5px] flex items-center gap-1.5 whitespace-nowrap active:scale-[0.96] transition-all group"
+              className="btn-tactile h-7 px-2 text-[11px] font-medium text-foreground-primary hover:bg-surface-card rounded-[5px] flex items-center gap-1.5 whitespace-nowrap group"
             >
               <Barcode className="w-3.5 h-3.5 text-foreground-muted group-hover:text-foreground-primary shrink-0 transition-colors" strokeWidth={1.8} />
               <span>Code 128</span>
@@ -634,7 +634,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
             <button
               type="button"
               onClick={() => handleAddField('barcode', { barcodeFormat: 'EAN13', defaultValue: '7891000100103' })}
-              className="btn-tactile h-7 px-2 text-[11px] font-medium text-foreground-primary hover:bg-surface-card rounded-[5px] flex items-center gap-1.5 whitespace-nowrap active:scale-[0.96] transition-all group"
+              className="btn-tactile h-7 px-2 text-[11px] font-medium text-foreground-primary hover:bg-surface-card rounded-[5px] flex items-center gap-1.5 whitespace-nowrap group"
             >
               <Barcode className="w-3.5 h-3.5 text-foreground-muted group-hover:text-foreground-primary shrink-0 transition-colors" strokeWidth={1.8} />
               <span>EAN-13</span>
@@ -642,7 +642,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
             <button
               type="button"
               onClick={() => handleAddField('qrcode')}
-              className="btn-tactile h-7 px-2 text-[11px] font-medium text-foreground-primary hover:bg-surface-card rounded-[5px] flex items-center gap-1.5 whitespace-nowrap active:scale-[0.96] transition-all group"
+              className="btn-tactile h-7 px-2 text-[11px] font-medium text-foreground-primary hover:bg-surface-card rounded-[5px] flex items-center gap-1.5 whitespace-nowrap group"
             >
               <QrCode className="w-3.5 h-3.5 text-foreground-muted group-hover:text-foreground-primary shrink-0 transition-colors" strokeWidth={1.8} />
               <span>QR Code</span>
@@ -655,7 +655,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                   svgContent: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" fill="none" stroke="black" stroke-width="6"/><path d="M30 50 L45 65 L70 35" stroke="black" stroke-width="6" fill="none"/></svg>`,
                 })
               }
-              className="btn-tactile h-7 px-2 text-[11px] font-medium text-foreground-primary hover:bg-surface-card rounded-[5px] flex items-center gap-1.5 whitespace-nowrap active:scale-[0.96] transition-all group"
+              className="btn-tactile h-7 px-2 text-[11px] font-medium text-foreground-primary hover:bg-surface-card rounded-[5px] flex items-center gap-1.5 whitespace-nowrap group"
             >
               <FileCode className="w-3.5 h-3.5 text-foreground-muted group-hover:text-foreground-primary shrink-0 transition-colors" strokeWidth={1.8} />
               <span>SVG</span>
@@ -750,7 +750,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
             <button
               type="button"
               onClick={handleSave}
-              className="btn-tactile h-7.5 bg-[#111111] hover:bg-[#27272a] text-white text-xs font-medium px-2.5 rounded-[6px] border border-[#111111] flex items-center gap-1.5 whitespace-nowrap shadow-xs active:scale-95 transition-all shrink-0"
+              className="btn-tactile h-7.5 bg-[#111111] hover:bg-[#27272a] text-white text-xs font-medium px-2.5 rounded-[6px] border border-[#111111] flex items-center gap-1.5 whitespace-nowrap shadow-xs shrink-0"
             >
               <Save className="w-3.5 h-3.5 text-white/90 shrink-0" strokeWidth={1.8} />
               <span>Salvar</span>
@@ -762,7 +762,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
             <button
               type="button"
               onClick={onClose}
-              className="btn-tactile h-7.5 w-7.5 flex items-center justify-center text-foreground-muted hover:text-foreground-primary rounded-[6px] hover:bg-black/5 active:scale-90 transition-all shrink-0"
+              className="btn-tactile h-7.5 w-7.5 flex items-center justify-center text-foreground-muted hover:text-foreground-primary rounded-[6px] hover:bg-black/5 active:scale-[0.95] shrink-0"
               title="Fechar editor (Esc)"
               aria-label="Fechar editor visual (Esc)"
             >
@@ -909,8 +909,8 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                       {/* Box Dimension & Coordinate Badge (Com inversão inteligente se encostar no topo) */}
                       {isSelected && (
                         <div
-                          className={`absolute left-1/2 -translate-x-1/2 bg-[#111111] text-white font-mono text-[9px] px-2 py-0.5 rounded-[5px] shadow-subtle flex items-center gap-1.5 whitespace-nowrap pointer-events-none z-50 transition-all ${
-                            (field.yMm ?? 0) < 7 ? 'top-full mt-2.5' : '-top-7'
+                          className={`badge-tooltip-popover absolute left-1/2 -translate-x-1/2 bg-[#111111] text-white font-mono text-[9px] px-2 py-0.5 rounded-[5px] shadow-subtle flex items-center gap-1.5 whitespace-nowrap pointer-events-none z-50 ${
+                            (field.yMm ?? 0) < 7 ? 'top-full mt-2.5 origin-top' : '-top-7 origin-bottom'
                           }`}
                         >
                           {field.locked && <Lock className="w-2.5 h-2.5 text-[#ef4444]" />}

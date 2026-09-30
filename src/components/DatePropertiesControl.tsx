@@ -105,7 +105,7 @@ export const DatePropertiesControl: React.FC<DatePropertiesControlProps> = ({
               key={p}
               type="button"
               onClick={() => onChangeDatePrefix(p)}
-              className={`btn-tactile text-[9.5px] px-1.5 py-0.5 rounded-[4px] border font-mono transition-all active:scale-[0.96] ${
+              className={`btn-tactile text-[9.5px] px-1.5 py-0.5 rounded-[4px] border font-mono ${
                 datePrefix === p
                   ? 'border-[#fb5607] bg-[#fb5607]/10 text-[#fb5607] font-semibold'
                   : 'border-border/80 text-foreground-muted hover:text-foreground-primary hover:bg-white'

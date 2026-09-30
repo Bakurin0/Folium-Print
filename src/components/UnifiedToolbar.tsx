@@ -101,7 +101,7 @@ export const UnifiedToolbar: React.FC<UnifiedToolbarProps> = ({
               <button
                 type="button"
                 onClick={onToggleHome}
-                className="btn-tactile flex items-center gap-2 px-2 py-1 rounded-[6px] hover:bg-black/[0.04] active:scale-[0.97] transition-all text-left group"
+                className="btn-tactile flex items-center gap-2 px-2 py-1 rounded-[6px] hover:bg-black/[0.04] text-left group"
                 title={`Ir para o Início (${formatShortcut('H')})`}
                 aria-label="Ir para o Início"
               >
@@ -188,7 +188,7 @@ export const UnifiedToolbar: React.FC<UnifiedToolbarProps> = ({
                     e.stopPropagation();
                     onCloseTemplate();
                   }}
-                  className="btn-tactile w-4 h-4 ml-0.5 rounded-full flex items-center justify-center text-foreground-muted hover:text-foreground-primary hover:bg-black/10 active:scale-90 transition-all shrink-0"
+                  className="btn-tactile w-4 h-4 ml-0.5 rounded-full flex items-center justify-center text-foreground-muted hover:text-foreground-primary hover:bg-black/10 active:scale-[0.95] shrink-0"
                   title={`Fechar modelo aberto (${formatShortcut('W')})`}
                   aria-label="Fechar modelo aberto"
                 >

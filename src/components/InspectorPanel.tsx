@@ -90,7 +90,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
     <aside
       aria-label="Inspetor de Configurações"
       aria-hidden={!isOpen}
-      className={`h-full border-black/[0.06] bg-surface-card flex flex-col shrink-0 z-20 transition-all duration-snappy ease-out select-none overflow-hidden ${
+      className={`h-full border-black/[0.06] bg-surface-card flex flex-col shrink-0 z-20 transition-[width,opacity] duration-snappy ease-emil-out select-none overflow-hidden ${
         isOpen
           ? 'w-80 xl:w-96 border-l opacity-100 pointer-events-auto'
           : 'w-0 border-l-0 opacity-0 pointer-events-none'

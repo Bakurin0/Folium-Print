@@ -46,7 +46,7 @@ const LabelMiniature: React.FC<{
 
   return (
     <div
-      className="w-11 h-11 rounded-[8px] bg-black/[0.035] border border-black/[0.05] flex items-center justify-center shrink-0 group-hover:bg-white group-hover:shadow-2xs group-hover:border-black/10 transition-all duration-snappy"
+      className="w-11 h-11 rounded-[8px] bg-black/[0.035] border border-black/[0.05] flex items-center justify-center shrink-0 group-hover:bg-white group-hover:shadow-2xs group-hover:border-black/10 transition-[background-color,border-color,box-shadow] duration-snappy ease-emil-out"
       aria-hidden="true"
     >
       <div
@@ -215,7 +215,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
               <div>
                 <h3 className="text-xs md:text-sm font-bold text-foreground-primary group-hover:text-[#3a86ff] transition-colors flex items-center gap-1.5">
                   <span>Novo Modelo Personalizado</span>
-                  <ArrowRight className="w-3.5 h-3.5 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-[#3a86ff]" />
+                  <ArrowRight className="w-3.5 h-3.5 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-[opacity,transform] duration-snappy ease-emil-out text-[#3a86ff]" />
                 </h3>
                 <p className="text-[11px] text-foreground-secondary mt-0.5 line-clamp-1">
                   Configure dimensões em milímetros, códigos de barras e campos do zero.
@@ -236,7 +236,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
               <div>
                 <h3 className="text-xs md:text-sm font-bold text-foreground-primary group-hover:text-emerald-600 transition-colors flex items-center gap-1.5">
                   <span>Importar Arquivo de Modelo</span>
-                  <ArrowRight className="w-3.5 h-3.5 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-emerald-600" />
+                  <ArrowRight className="w-3.5 h-3.5 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-[opacity,transform] duration-snappy ease-emil-out text-emerald-600" />
                 </h3>
                 <p className="text-[11px] text-foreground-secondary mt-0.5 line-clamp-1">
                   Carregue arquivos .folium, .json, .svg ou .html locais.
@@ -391,7 +391,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   <button
                     type="button"
                     onClick={onOpenCreateModal}
-                    className="btn-tactile inline-flex items-center gap-2 px-3.5 py-1.5 rounded-[7px] bg-[#111111] hover:bg-[#27272a] active:scale-[0.98] text-white text-xs font-semibold shadow-xs transition-all duration-snappy"
+                    className="btn-tactile inline-flex items-center gap-2 px-3.5 py-1.5 rounded-[7px] bg-[#111111] hover:bg-[#27272a] active:scale-[0.97] text-white text-xs font-semibold shadow-xs"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Criar Primeiro Modelo</span>
@@ -399,7 +399,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="btn-tactile inline-flex items-center gap-2 px-3.5 py-1.5 rounded-[7px] bg-surface-card border border-border/80 hover:bg-black/[0.03] active:scale-[0.98] text-foreground-primary text-xs font-medium shadow-2xs transition-all duration-snappy"
+                    className="btn-tactile inline-flex items-center gap-2 px-3.5 py-1.5 rounded-[7px] bg-surface-card border border-border/80 hover:bg-black/[0.03] active:scale-[0.97] text-foreground-primary text-xs font-medium shadow-2xs"
                   >
                     <Upload className="w-3.5 h-3.5 text-foreground-muted" />
                     <span>Importar Arquivo</span>
