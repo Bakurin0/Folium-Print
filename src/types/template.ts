@@ -6,6 +6,8 @@ export type FieldType = 'text' | 'number' | 'date' | 'barcode' | 'qrcode' | 'svg
 
 export type BarcodeFormat = 'CODE128' | 'EAN13';
 
+export type DateFormat = 'DD/MM/YYYY' | 'DD/MM/AA' | 'DD/MM' | 'YYYY-MM-DD' | 'extended';
+
 export interface TemplateField {
   key: string;
   label: string;
@@ -30,6 +32,16 @@ export interface TemplateField {
   showBorder?: boolean;
   showLabel?: boolean;
   svgContent?: string;
+  svgFill?: string;
+  svgStroke?: string;
+  svgStrokeWidth?: number;
+  svgRotation?: 0 | 90 | 180 | 270;
+  svgFlipH?: boolean;
+  svgFlipV?: boolean;
+  // Date formatting properties
+  dateFormat?: DateFormat;
+  datePrefix?: string;
+  isAutoDate?: boolean;
   locked?: boolean;
   autoScaleFont?: boolean;
 }
@@ -78,6 +90,13 @@ export interface Template {
   grid?: TemplateGrid;
   fields: TemplateField[];
   backgroundSvg?: string;
+  backgroundSvgFill?: string;
+  backgroundSvgStroke?: string;
+  backgroundSvgStrokeWidth?: number;
+  backgroundSvgRotation?: 0 | 90 | 180 | 270;
+  backgroundSvgFlipH?: boolean;
+  backgroundSvgFlipV?: boolean;
+  backgroundSvgOpacity?: number;
   isCustom?: boolean;
   render: (props: TemplateRenderProps) => ReactNode;
 }

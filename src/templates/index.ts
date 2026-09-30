@@ -1,4 +1,5 @@
 import { Template } from '../types/template';
+import { getTodayIso, getTodayFormatted } from '../utils/dateUtils';
 
 /**
  * Catálogo de modelos do sistema.
@@ -13,7 +14,17 @@ export const getDefaultFormData = (template?: Template | null): Record<string, a
   if (!template) return {};
   const data: Record<string, any> = {};
   template.fields.forEach((field) => {
-    data[field.key] = field.defaultValue ?? '';
+    if (field.type === 'date') {
+      if (field.defaultValue === 'today' || !field.defaultValue || field.isAutoDate) {
+        data[field.key] = getTodayIso();
+      } else {
+        data[field.key] = field.defaultValue;
+      }
+    } else if (field.isAutoDate) {
+      data[field.key] = getTodayFormatted(field.dateFormat, field.datePrefix);
+    } else {
+      data[field.key] = field.defaultValue ?? '';
+    }
   });
 
   if (template.grid) {

@@ -1,5 +1,6 @@
 import React from 'react';
 import { TemplateField, TemplateFormData } from '../types/template';
+import { getTodayIso, getTodayFormatted } from '../utils/dateUtils';
 import { 
   Barcode, 
   QrCode, 
@@ -9,7 +10,8 @@ import {
   X, 
   Wand2, 
   RotateCcw,
-  AlignLeft
+  AlignLeft,
+  CalendarCheck
 } from 'lucide-react';
 
 interface DynamicFormProps {
@@ -64,6 +66,9 @@ const generateSampleData = (field: TemplateField) => {
   if (field.type === 'qrcode') {
     const randomId = Math.random().toString(36).substring(2, 9).toUpperCase();
     return `https://folium.app/item/${randomId}`;
+  }
+  if (field.type === 'date' || field.isAutoDate) {
+    return getTodayIso();
   }
   return '';
 };
@@ -198,6 +203,20 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                     <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-[4px] bg-[#3a86ff]/10 text-[#3a86ff] border border-[#3a86ff]/20">
                       {field.barcodeFormat}
                     </span>
+                  )}
+
+                  {(field.type === 'date' || field.isAutoDate) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onChangeField(field.key, field.type === 'date' ? getTodayIso() : getTodayFormatted(field.dateFormat, field.datePrefix));
+                      }}
+                      className="btn-tactile text-[9.5px] font-medium text-foreground-muted hover:text-foreground-primary hover:bg-black/[0.04] active:scale-[0.96] px-1.5 py-0.5 rounded-[4px] flex items-center gap-1 transition-all"
+                      title="Preencher com a data de hoje"
+                    >
+                      <CalendarCheck className="w-3 h-3 text-[#fb5607]" />
+                      <span>Hoje</span>
+                    </button>
                   )}
                 </div>
               </div>

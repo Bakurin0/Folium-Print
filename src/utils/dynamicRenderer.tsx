@@ -1,7 +1,8 @@
 import { CustomTemplateDefinition, TemplateRenderProps } from '../types/template';
 import { BarcodeSvg, QRCodeSvg } from '../components/CodeRenderer';
-import { sanitizeSvg } from './sanitizeSvg';
 import { resolveCopyTokens } from './paginationTokens';
+import { formatDate, getTodayFormatted } from './dateUtils';
+import { applySvgAdjustments, getSvgTransformStyle } from './svgTransform';
 
 // ponytail: Uses CSS mm-based absolute coordinates and inline SVG. Native browser layout without canvas/fabric.js dependency.
 // Ceiling: Multi-layer z-index management and complex SVG path node-by-node vector editing is omitted.
@@ -37,9 +38,19 @@ export const createDynamicRenderer = (template: CustomTemplateDefinition) => {
           const h = field.heightMm ?? 8;
           const rawVal = data[field.key] !== undefined ? data[field.key] : (field.defaultValue ?? '');
           const isCodeOrSvg = field.type === 'svg' || field.type === 'qrcode' || field.type === 'barcode';
+          
+          let resolvedVal = rawVal;
+          if (field.type === 'date' || field.isAutoDate) {
+            if (!rawVal && (field.isAutoDate || field.defaultValue === 'today')) {
+              resolvedVal = getTodayFormatted(field.dateFormat, field.datePrefix);
+            } else if (rawVal) {
+              resolvedVal = formatDate(String(rawVal), field.dateFormat, field.datePrefix);
+            }
+          }
+
           const val = isCodeOrSvg
             ? rawVal
-            : resolveCopyTokens(String(rawVal ?? ''), activeCopyIndex, activeCopyTotal, shouldHideSingle);
+            : resolveCopyTokens(String(resolvedVal ?? ''), activeCopyIndex, activeCopyTotal, shouldHideSingle);
 
           const isOmittedBySingleCopy =
             !isCodeOrSvg &&
@@ -79,7 +90,18 @@ export const createDynamicRenderer = (template: CustomTemplateDefinition) => {
               {field.type === 'svg' ? (
                 <div
                   className="w-full h-full flex items-center justify-center overflow-hidden"
-                  dangerouslySetInnerHTML={{ __html: sanitizeSvg(field.svgContent || String(val) || '<svg></svg>') }}
+                  style={getSvgTransformStyle({
+                    rotation: field.svgRotation,
+                    flipH: field.svgFlipH,
+                    flipV: field.svgFlipV,
+                  })}
+                  dangerouslySetInnerHTML={{
+                    __html: applySvgAdjustments(field.svgContent || String(val) || '<svg></svg>', {
+                      fill: field.svgFill,
+                      stroke: field.svgStroke,
+                      strokeWidth: field.svgStrokeWidth,
+                    }),
+                  }}
                 />
               ) : field.type === 'qrcode' ? (
                 <div className="w-full h-full flex items-center justify-center overflow-hidden">
@@ -182,8 +204,22 @@ export const createDynamicRenderer = (template: CustomTemplateDefinition) => {
         {/* Background SVG / Frame / Logo */}
         {template.backgroundSvg && (
           <div
-            className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center opacity-90"
-            dangerouslySetInnerHTML={{ __html: sanitizeSvg(template.backgroundSvg) }}
+            className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center"
+            style={{
+              opacity: template.backgroundSvgOpacity ?? 0.9,
+              ...getSvgTransformStyle({
+                rotation: template.backgroundSvgRotation,
+                flipH: template.backgroundSvgFlipH,
+                flipV: template.backgroundSvgFlipV,
+              }),
+            }}
+            dangerouslySetInnerHTML={{
+              __html: applySvgAdjustments(template.backgroundSvg, {
+                fill: template.backgroundSvgFill,
+                stroke: template.backgroundSvgStroke,
+                strokeWidth: template.backgroundSvgStrokeWidth,
+              }),
+            }}
           />
         )}
 

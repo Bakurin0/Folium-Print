@@ -8,7 +8,6 @@ import {
   Type,
   FileCode,
   Save,
-  Upload,
   Ruler,
   Sliders,
   Download,
@@ -18,12 +17,16 @@ import {
   Copy,
   Lock,
   Unlock,
+  Calendar,
 } from 'lucide-react';
 import { BarcodeSvg, QRCodeSvg } from './CodeRenderer';
 import { MM_TO_PX } from '../utils/units';
-import { sanitizeSvg } from '../utils/sanitizeSvg';
 import { exportTemplateAsFile, importTemplateFromFile, ExportFormat } from '../utils/templateFileIO';
 import { resolveCopyTokens } from '../utils/paginationTokens';
+import { formatDate } from '../utils/dateUtils';
+import { applySvgAdjustments, getSvgTransformStyle } from '../utils/svgTransform';
+import { SvgPropertiesControl } from './SvgPropertiesControl';
+import { DatePropertiesControl } from './DatePropertiesControl';
 
 interface VisualTemplateEditorModalProps {
   isOpen: boolean;
@@ -46,6 +49,13 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
   const [widthMm, setWidthMm] = useState(80);
   const [heightMm, setHeightMm] = useState(50);
   const [backgroundSvg, setBackgroundSvg] = useState('');
+  const [backgroundSvgFill, setBackgroundSvgFill] = useState('');
+  const [backgroundSvgStroke, setBackgroundSvgStroke] = useState('');
+  const [backgroundSvgStrokeWidth, setBackgroundSvgStrokeWidth] = useState<number>(0);
+  const [backgroundSvgRotation, setBackgroundSvgRotation] = useState<0 | 90 | 180 | 270>(0);
+  const [backgroundSvgFlipH, setBackgroundSvgFlipH] = useState(false);
+  const [backgroundSvgFlipV, setBackgroundSvgFlipV] = useState(false);
+  const [backgroundSvgOpacity, setBackgroundSvgOpacity] = useState<number>(0.9);
   const [fields, setFields] = useState<TemplateField[]>([]);
   const [selectedFieldKey, setSelectedFieldKey] = useState<string | null>(null);
 
@@ -82,6 +92,13 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
       setWidthMm(initialTemplate.dimensions.widthMm);
       setHeightMm(initialTemplate.dimensions.heightMm);
       setBackgroundSvg(initialTemplate.backgroundSvg || '');
+      setBackgroundSvgFill(initialTemplate.backgroundSvgFill || '');
+      setBackgroundSvgStroke(initialTemplate.backgroundSvgStroke || '');
+      setBackgroundSvgStrokeWidth(initialTemplate.backgroundSvgStrokeWidth || 0);
+      setBackgroundSvgRotation(initialTemplate.backgroundSvgRotation || 0);
+      setBackgroundSvgFlipH(Boolean(initialTemplate.backgroundSvgFlipH));
+      setBackgroundSvgFlipV(Boolean(initialTemplate.backgroundSvgFlipV));
+      setBackgroundSvgOpacity(initialTemplate.backgroundSvgOpacity ?? 0.9);
 
       // Ensure fields have coordinates
       const loadedFields = initialTemplate.fields.map((f, i) => ({
@@ -178,22 +195,50 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
 
   const handleAddField = (type: FieldType, extra?: Partial<TemplateField>) => {
     const key = `campo_${Date.now()}`;
+    const isDate = type === 'date' || extra?.isAutoDate;
+    const defaultLabel = isDate
+      ? 'Data'
+      : type === 'barcode'
+      ? 'Código de Barras'
+      : type === 'qrcode'
+      ? 'QR Code'
+      : type === 'svg'
+      ? 'Logotipo SVG'
+      : `Campo ${fields.length + 1}`;
+
+    const defaultVal = isDate
+      ? 'today'
+      : type === 'barcode'
+      ? '123456789'
+      : type === 'qrcode'
+      ? 'INFO'
+      : 'Texto de exemplo';
+
     const newField: TemplateField = {
       key,
-      label: type === 'barcode' ? 'Código de Barras' : type === 'qrcode' ? 'QR Code' : type === 'svg' ? 'Logotipo SVG' : `Campo ${fields.length + 1}`,
+      label: defaultLabel,
       type,
       required: false,
-      defaultValue: type === 'barcode' ? '123456789' : type === 'qrcode' ? 'INFO' : 'Texto de exemplo',
+      defaultValue: defaultVal,
       xMm: 5,
       yMm: Math.min(heightMm - 10, 5 + fields.length * 6),
-      widthMm: type === 'qrcode' ? 14 : type === 'svg' ? 20 : Math.min(widthMm - 10, 60),
+      widthMm: type === 'qrcode' ? 14 : type === 'svg' ? 20 : isDate ? Math.min(widthMm - 10, 36) : Math.min(widthMm - 10, 60),
       heightMm: type === 'barcode' ? 16 : type === 'qrcode' ? 14 : type === 'svg' ? 14 : 7,
       fontSizePt: 8.5,
       fontWeight: 'normal',
       textAlign: 'left',
       showBorder: false,
-      showLabel: type === 'text',
+      showLabel: type === 'text' || isDate,
       barcodeFormat: type === 'barcode' ? 'CODE128' : undefined,
+      dateFormat: isDate ? 'DD/MM/YYYY' : undefined,
+      datePrefix: '',
+      isAutoDate: isDate,
+      svgFill: type === 'svg' ? '#000000' : undefined,
+      svgStroke: type === 'svg' ? '' : undefined,
+      svgStrokeWidth: type === 'svg' ? 0 : undefined,
+      svgRotation: 0,
+      svgFlipH: false,
+      svgFlipV: false,
       ...extra,
     };
 
@@ -394,9 +439,31 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
       },
       fields: fields,
       backgroundSvg: backgroundSvg.trim() || undefined,
+      backgroundSvgFill: backgroundSvgFill || undefined,
+      backgroundSvgStroke: backgroundSvgStroke || undefined,
+      backgroundSvgStrokeWidth: backgroundSvgStrokeWidth > 0 ? backgroundSvgStrokeWidth : undefined,
+      backgroundSvgRotation: backgroundSvgRotation !== 0 ? backgroundSvgRotation : undefined,
+      backgroundSvgFlipH: backgroundSvgFlipH || undefined,
+      backgroundSvgFlipV: backgroundSvgFlipV || undefined,
+      backgroundSvgOpacity: backgroundSvgOpacity !== 0.9 ? backgroundSvgOpacity : undefined,
       isCustom: true,
     };
-  }, [initialTemplate, name, category, widthMm, heightMm, fields, backgroundSvg]);
+  }, [
+    initialTemplate, 
+    name, 
+    category, 
+    widthMm, 
+    heightMm, 
+    fields, 
+    backgroundSvg,
+    backgroundSvgFill,
+    backgroundSvgStroke,
+    backgroundSvgStrokeWidth,
+    backgroundSvgRotation,
+    backgroundSvgFlipH,
+    backgroundSvgFlipV,
+    backgroundSvgOpacity
+  ]);
 
   // Exportar modelo em arquivo (.folium, .json ou .html)
   const handleExport = (format: ExportFormat) => {
@@ -423,6 +490,13 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
     if (data.dimensions?.widthMm) setWidthMm(data.dimensions.widthMm);
     if (data.dimensions?.heightMm) setHeightMm(data.dimensions.heightMm);
     if (data.backgroundSvg !== undefined) setBackgroundSvg(data.backgroundSvg);
+    if (data.backgroundSvgFill !== undefined) setBackgroundSvgFill(data.backgroundSvgFill);
+    if (data.backgroundSvgStroke !== undefined) setBackgroundSvgStroke(data.backgroundSvgStroke);
+    if (data.backgroundSvgStrokeWidth !== undefined) setBackgroundSvgStrokeWidth(data.backgroundSvgStrokeWidth);
+    if (data.backgroundSvgRotation !== undefined) setBackgroundSvgRotation(data.backgroundSvgRotation);
+    if (data.backgroundSvgFlipH !== undefined) setBackgroundSvgFlipH(data.backgroundSvgFlipH);
+    if (data.backgroundSvgFlipV !== undefined) setBackgroundSvgFlipV(data.backgroundSvgFlipV);
+    if (data.backgroundSvgOpacity !== undefined) setBackgroundSvgOpacity(data.backgroundSvgOpacity);
     if (data.fields && Array.isArray(data.fields)) {
       setFields(data.fields);
       setSelectedFieldKey(data.fields[0]?.key || null);
@@ -500,6 +574,26 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
             >
               <Copy className="w-3.5 h-3.5 text-foreground-muted group-hover:text-foreground-primary shrink-0 transition-colors" strokeWidth={1.8} />
               <span>Volume</span>
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                handleAddField('date', {
+                  label: 'Data',
+                  isAutoDate: true,
+                  dateFormat: 'DD/MM/YYYY',
+                  datePrefix: '',
+                  defaultValue: 'today',
+                  showLabel: true,
+                  widthMm: Math.min(widthMm - 10, 36),
+                  heightMm: 6,
+                })
+              }
+              className="btn-tactile h-7 px-2 text-[11px] font-medium text-foreground-primary hover:bg-surface-card rounded-[5px] flex items-center gap-1.5 whitespace-nowrap active:scale-[0.96] transition-all group"
+              title="Adicionar campo de data com dia, mês e ano automáticos"
+            >
+              <Calendar className="w-3.5 h-3.5 text-foreground-muted group-hover:text-[#fb5607] shrink-0 transition-colors" strokeWidth={1.8} />
+              <span>Data Auto</span>
             </button>
             <button
               type="button"
@@ -726,8 +820,22 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                   {/* Background SVG if configured */}
                   {backgroundSvg && (
                     <div
-                      className="absolute inset-0 overflow-hidden flex items-center justify-center opacity-80"
-                      dangerouslySetInnerHTML={{ __html: sanitizeSvg(backgroundSvg) }}
+                      className="absolute inset-0 overflow-hidden flex items-center justify-center pointer-events-none"
+                      style={{
+                        opacity: backgroundSvgOpacity,
+                        ...getSvgTransformStyle({
+                          rotation: backgroundSvgRotation,
+                          flipH: backgroundSvgFlipH,
+                          flipV: backgroundSvgFlipV,
+                        }),
+                      }}
+                      dangerouslySetInnerHTML={{
+                        __html: applySvgAdjustments(backgroundSvg, {
+                          fill: backgroundSvgFill,
+                          stroke: backgroundSvgStroke,
+                          strokeWidth: backgroundSvgStrokeWidth,
+                        }),
+                      }}
                     />
                   )}
                 </div>
@@ -809,7 +917,18 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                         {field.type === 'svg' ? (
                           <div
                             className="w-full h-full flex items-center justify-center overflow-hidden"
-                            dangerouslySetInnerHTML={{ __html: sanitizeSvg(field.svgContent || '<svg></svg>') }}
+                            style={getSvgTransformStyle({
+                              rotation: field.svgRotation,
+                              flipH: field.svgFlipH,
+                              flipV: field.svgFlipV,
+                            })}
+                            dangerouslySetInnerHTML={{
+                              __html: applySvgAdjustments(field.svgContent || '<svg></svg>', {
+                                fill: field.svgFill,
+                                stroke: field.svgStroke,
+                                strokeWidth: field.svgStrokeWidth,
+                              }),
+                            }}
                           />
                         ) : field.type === 'qrcode' ? (
                           <div className="w-full h-full flex items-center justify-center overflow-hidden">
@@ -841,7 +960,9 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                               </span>
                             )}
                             <span>
-                              {resolveCopyTokens(String(field.defaultValue || field.label), 1, 2, false)}
+                              {field.type === 'date' || field.isAutoDate
+                                ? formatDate(new Date(), field.dateFormat, field.datePrefix)
+                                : resolveCopyTokens(String(field.defaultValue || field.label), 1, 2, false)}
                             </span>
                           </div>
                         )}
@@ -897,43 +1018,27 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                 </div>
               </div>
 
-              {/* Background SVG Upload / Code */}
-              <div className="pt-2 border-t border-border/60 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-medium text-foreground-primary flex items-center gap-1.5">
-                    <FileCode className="w-3.5 h-3.5 text-[#8338ec]" />
-                    <span>SVG de Fundo / Moldura</span>
-                  </label>
-                  {backgroundSvg && (
-                    <button
-                      type="button"
-                      onClick={() => setBackgroundSvg('')}
-                      className="text-[10px] text-feedback-error hover:underline font-medium"
-                    >
-                      Remover
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <label className="btn-tactile cursor-pointer text-xs bg-surface-subtle hover:bg-black/[0.04] text-foreground-primary px-2.5 py-1 rounded-[6px] border border-border flex items-center gap-1.5 transition-colors">
-                    <Upload className="w-3.5 h-3.5 text-foreground-muted" />
-                    <span>Subir arquivo .svg</span>
-                    <input
-                      type="file"
-                      accept=".svg"
-                      className="hidden"
-                      onChange={(e) => handleSvgFileUpload(e, 'background')}
-                    />
-                  </label>
-                </div>
-
-                <textarea
-                  rows={2}
-                  value={backgroundSvg}
-                  onChange={(e) => setBackgroundSvg(e.target.value)}
-                  placeholder="Ou cole o código <svg> aqui..."
-                  className="w-full text-[10px] font-mono p-2 bg-black/[0.035] hover:bg-black/[0.05] focus:bg-white border border-border/80 focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/15 rounded-[6px] text-foreground-primary placeholder:text-foreground-muted outline-none transition-colors duration-instant"
+              {/* Background SVG Control */}
+              <div className="pt-2 border-t border-border/60">
+                <SvgPropertiesControl
+                  label="SVG de Fundo / Moldura"
+                  svgContent={backgroundSvg}
+                  onChangeSvgContent={setBackgroundSvg}
+                  fill={backgroundSvgFill}
+                  onChangeFill={setBackgroundSvgFill}
+                  stroke={backgroundSvgStroke}
+                  onChangeStroke={setBackgroundSvgStroke}
+                  strokeWidth={backgroundSvgStrokeWidth}
+                  onChangeStrokeWidth={setBackgroundSvgStrokeWidth}
+                  rotation={backgroundSvgRotation}
+                  onChangeRotation={setBackgroundSvgRotation}
+                  flipH={backgroundSvgFlipH}
+                  onChangeFlipH={setBackgroundSvgFlipH}
+                  flipV={backgroundSvgFlipV}
+                  onChangeFlipV={setBackgroundSvgFlipV}
+                  onFileUpload={(e) => handleSvgFileUpload(e, 'background')}
+                  onRemove={backgroundSvg ? () => setBackgroundSvg('') : undefined}
+                  showPreview={Boolean(backgroundSvg)}
                 />
               </div>
             </div>
@@ -1131,30 +1236,35 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                     </div>
                   )}
 
-                  {/* SVG Content input for SVG elements */}
                   {selectedField.type === 'svg' ? (
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[11px] font-medium text-foreground-primary">
-                          Conteúdo SVG do Elemento
-                        </label>
-                        <label className="cursor-pointer text-[10px] text-[#3a86ff] hover:underline font-medium">
-                          Carregar .svg
-                          <input
-                            type="file"
-                            accept=".svg"
-                            className="hidden"
-                            onChange={(e) => handleSvgFileUpload(e, 'field')}
-                          />
-                        </label>
-                      </div>
-                      <textarea
-                        rows={3}
-                        value={selectedField.svgContent || ''}
-                        onChange={(e) => handleUpdateField(selectedField.key, { svgContent: e.target.value })}
-                        className="w-full text-[10px] font-mono p-2 bg-black/[0.035] hover:bg-black/[0.05] focus:bg-white border border-border/80 focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/15 rounded-[6px] outline-none transition-colors duration-instant"
-                      />
-                    </div>
+                    <SvgPropertiesControl
+                      label="Propriedades do SVG"
+                      svgContent={selectedField.svgContent || ''}
+                      onChangeSvgContent={(content) => handleUpdateField(selectedField.key, { svgContent: content })}
+                      fill={selectedField.svgFill || ''}
+                      onChangeFill={(fill) => handleUpdateField(selectedField.key, { svgFill: fill })}
+                      stroke={selectedField.svgStroke || ''}
+                      onChangeStroke={(stroke) => handleUpdateField(selectedField.key, { svgStroke: stroke })}
+                      strokeWidth={selectedField.svgStrokeWidth || 0}
+                      onChangeStrokeWidth={(w) => handleUpdateField(selectedField.key, { svgStrokeWidth: w })}
+                      rotation={selectedField.svgRotation || 0}
+                      onChangeRotation={(rot) => handleUpdateField(selectedField.key, { svgRotation: rot })}
+                      flipH={Boolean(selectedField.svgFlipH)}
+                      onChangeFlipH={(flip) => handleUpdateField(selectedField.key, { svgFlipH: flip })}
+                      flipV={Boolean(selectedField.svgFlipV)}
+                      onChangeFlipV={(flip) => handleUpdateField(selectedField.key, { svgFlipV: flip })}
+                      onFileUpload={(e) => handleSvgFileUpload(e, 'field')}
+                      showPreview={true}
+                    />
+                  ) : selectedField.type === 'date' || selectedField.isAutoDate ? (
+                    <DatePropertiesControl
+                      dateFormat={selectedField.dateFormat || 'DD/MM/YYYY'}
+                      onChangeDateFormat={(fmt) => handleUpdateField(selectedField.key, { dateFormat: fmt })}
+                      datePrefix={selectedField.datePrefix || ''}
+                      onChangeDatePrefix={(prefix) => handleUpdateField(selectedField.key, { datePrefix: prefix })}
+                      isAutoDate={selectedField.isAutoDate !== false}
+                      onChangeIsAutoDate={(auto) => handleUpdateField(selectedField.key, { isAutoDate: auto })}
+                    />
                   ) : (
                     <div>
                       <label className="text-[11px] font-medium text-foreground-primary block mb-1">
