@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, Suspense, lazy } from 'react';
 import gsap from 'gsap';
 import { getDefaultFormData } from './templates';
 import { Template, TemplateFormData, CustomTemplateDefinition } from './types/template';
@@ -6,12 +6,14 @@ import { UnifiedToolbar } from './components/UnifiedToolbar';
 import { ModelsSidebar } from './components/ModelsSidebar';
 import { StudioCanvas } from './components/StudioCanvas';
 import { InspectorPanel, InspectorTab } from './components/InspectorPanel';
-import { ShortcutsModal } from './components/ShortcutsModal';
-import { PrivacySettingsModal } from './components/PrivacySettingsModal';
-import { VisualTemplateEditorModal } from './components/VisualTemplateEditorModal';
 import { HomeDashboard } from './components/HomeDashboard';
 import { PrinterBootAnimation } from './components/PrinterBootAnimation';
 import { executePixelPerfectPrint } from './utils/printService';
+
+// Carregamento sob demanda (code-splitting dinâmico) para modais secundários
+const ShortcutsModal = lazy(() => import('./components/ShortcutsModal').then(m => ({ default: m.ShortcutsModal })));
+const PrivacySettingsModal = lazy(() => import('./components/PrivacySettingsModal').then(m => ({ default: m.PrivacySettingsModal })));
+const VisualTemplateEditorModal = lazy(() => import('./components/VisualTemplateEditorModal').then(m => ({ default: m.VisualTemplateEditorModal })));
 import { generateCropMarksSvg } from './utils/cropMarksGenerator';
 import { sanitizeSvg } from './utils/sanitizeSvg';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -530,31 +532,39 @@ export const App: React.FC = () => {
         )}
       </div>
 
-      {/* Modais */}
-      <VisualTemplateEditorModal
-        isOpen={isEditorOpen}
-        initialTemplate={editingTemplate}
-        onClose={() => {
-          setIsEditorOpen(false);
-          setEditingTemplate(null);
-        }}
-        onSave={handleSaveCustomTemplate}
-      />
+      {/* Modais com Carregamento Sob Demanda (Suspense) */}
+      <Suspense fallback={null}>
+        {isEditorOpen && (
+          <VisualTemplateEditorModal
+            isOpen={isEditorOpen}
+            initialTemplate={editingTemplate}
+            onClose={() => {
+              setIsEditorOpen(false);
+              setEditingTemplate(null);
+            }}
+            onSave={handleSaveCustomTemplate}
+          />
+        )}
 
-      <ShortcutsModal
-        isOpen={isShortcutsModalOpen}
-        onClose={() => setIsShortcutsModalOpen(false)}
-      />
+        {isShortcutsModalOpen && (
+          <ShortcutsModal
+            isOpen={isShortcutsModalOpen}
+            onClose={() => setIsShortcutsModalOpen(false)}
+          />
+        )}
 
-      <PrivacySettingsModal
-        isOpen={isPrivacyModalOpen}
-        onClose={() => setIsPrivacyModalOpen(false)}
-        showToast={showToast}
-        onDataPurged={() => {
-          setIsPrivacyModalOpen(false);
-          window.location.reload();
-        }}
-      />
+        {isPrivacyModalOpen && (
+          <PrivacySettingsModal
+            isOpen={isPrivacyModalOpen}
+            onClose={() => setIsPrivacyModalOpen(false)}
+            showToast={showToast}
+            onDataPurged={() => {
+              setIsPrivacyModalOpen(false);
+              window.location.reload();
+            }}
+          />
+        )}
+      </Suspense>
 
       {/* Toast Notifier com Física de Transição Retargetável */}
       {toastState && (
