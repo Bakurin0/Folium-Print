@@ -7,6 +7,7 @@ import { ModelsSidebar } from './components/ModelsSidebar';
 import { StudioCanvas } from './components/StudioCanvas';
 import { InspectorPanel, InspectorTab } from './components/InspectorPanel';
 import { ShortcutsModal } from './components/ShortcutsModal';
+import { PrivacySettingsModal } from './components/PrivacySettingsModal';
 import { VisualTemplateEditorModal } from './components/VisualTemplateEditorModal';
 import { HomeDashboard } from './components/HomeDashboard';
 import { PrinterBootAnimation } from './components/PrinterBootAnimation';
@@ -76,6 +77,7 @@ export const App: React.FC = () => {
   const [activeInspectorTab, setActiveInspectorTab] = useState<InspectorTab>('data');
   const [isPrinting, setIsPrinting] = useState<boolean>(false);
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState<boolean>(false);
+  const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState<boolean>(false);
   const [isEditorOpen, setIsEditorOpen] = useState<boolean>(false);
   const [editingTemplate, setEditingTemplate] = useState<CustomTemplateDefinition | null>(null);
   // Estado de Boot Mecânico da Impressora Térmica (disparado ao abrir modelo na Home)
@@ -295,10 +297,11 @@ export const App: React.FC = () => {
     onToggleLeftSidebar: () => setIsLeftSidebarOpen((prev) => !prev),
     onToggleRightSidebar: () => setIsRightSidebarOpen((prev) => !prev),
     onToggleFocusMode: handleToggleFocusMode,
-    isModalOpen: isShortcutsModalOpen || isEditorOpen,
+    isModalOpen: isShortcutsModalOpen || isEditorOpen || isPrivacyModalOpen,
     onCloseModal: () => {
       setIsShortcutsModalOpen(false);
       setIsEditorOpen(false);
+      setIsPrivacyModalOpen(false);
     },
   });
 
@@ -336,6 +339,7 @@ export const App: React.FC = () => {
         onToggleLeftSidebar={() => setIsLeftSidebarOpen((prev) => !prev)}
         onToggleRightSidebar={() => setIsRightSidebarOpen((prev) => !prev)}
         onOpenShortcutsModal={() => setIsShortcutsModalOpen(true)}
+        onOpenPrivacyModal={() => setIsPrivacyModalOpen(true)}
         onPrint={handlePrint}
         onCloseTemplate={handleCloseFile}
         isPrinting={isPrinting}
@@ -540,6 +544,16 @@ export const App: React.FC = () => {
       <ShortcutsModal
         isOpen={isShortcutsModalOpen}
         onClose={() => setIsShortcutsModalOpen(false)}
+      />
+
+      <PrivacySettingsModal
+        isOpen={isPrivacyModalOpen}
+        onClose={() => setIsPrivacyModalOpen(false)}
+        showToast={showToast}
+        onDataPurged={() => {
+          setIsPrivacyModalOpen(false);
+          window.location.reload();
+        }}
       />
 
       {/* Toast Notifier com Física de Transição Retargetável */}

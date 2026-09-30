@@ -5,6 +5,7 @@ import {
   PanelRight, 
   Printer, 
   Keyboard, 
+  ShieldCheck,
   Palette, 
   Scissors, 
   Grid,
@@ -24,6 +25,7 @@ interface UnifiedToolbarProps {
   onToggleLeftSidebar: () => void;
   onToggleRightSidebar: () => void;
   onOpenShortcutsModal: () => void;
+  onOpenPrivacyModal?: () => void;
   onPrint: () => void;
   onCloseTemplate?: () => void;
   isPrinting?: boolean;
@@ -47,6 +49,7 @@ export const UnifiedToolbar: React.FC<UnifiedToolbarProps> = ({
   onToggleLeftSidebar,
   onToggleRightSidebar,
   onOpenShortcutsModal,
+  onOpenPrivacyModal,
   onPrint,
   onCloseTemplate,
   isPrinting = false,
@@ -206,6 +209,18 @@ export const UnifiedToolbar: React.FC<UnifiedToolbarProps> = ({
               </button>
             )}
 
+            {onOpenPrivacyModal && (
+              <button
+                type="button"
+                onClick={onOpenPrivacyModal}
+                className="btn-tactile p-1.5 text-foreground-secondary hover:text-foreground-primary hover:bg-surface-subtle border border-transparent hover:border-border/60 rounded-[6px]"
+                title="Privacidade & Gestão de Dados Locais (LGPD)"
+                aria-label="Privacidade & Gestão de Dados Locais (LGPD)"
+              >
+                <ShieldCheck className="w-4 h-4 text-emerald-600" strokeWidth={1.8} aria-hidden="true" />
+              </button>
+            )}
+
             <button
               type="button"
               onClick={onOpenShortcutsModal}
@@ -247,6 +262,18 @@ export const UnifiedToolbar: React.FC<UnifiedToolbarProps> = ({
                 ) : (
                   <Maximize2 className="w-4 h-4" strokeWidth={1.8} />
                 )}
+              </button>
+            )}
+
+            {onOpenPrivacyModal && (
+              <button
+                type="button"
+                onClick={onOpenPrivacyModal}
+                className="btn-tactile p-1.5 text-foreground-secondary hover:text-foreground-primary hover:bg-surface-subtle border border-transparent hover:border-border/60 rounded-[6px]"
+                title="Privacidade & Gestão de Dados Locais (LGPD)"
+                aria-label="Privacidade & Gestão de Dados Locais (LGPD)"
+              >
+                <ShieldCheck className="w-4 h-4 text-emerald-600" strokeWidth={1.8} aria-hidden="true" />
               </button>
             )}
 

@@ -3,7 +3,7 @@
 Este índice organiza todos os planos de refinamento de animações, física tátil e acessibilidade baseados na filosofia de Emil Kowalski para o **Folium-Print**.
 
 - **Commit Base:** `60ba95a`
-- **Total de Planos:** 6
+- **Total de Planos:** 7
 
 ---
 
@@ -17,6 +17,7 @@ Este índice organiza todos os planos de refinamento de animações, física tá
 | [004](004-performance-scoped-transitions.md) | Escopo Específico de Transições para Performance (Remover transition-all) | MÉDIA | Plano 002 | ✅ Concluído |
 | [005](005-tactile-physics-and-drag-overlay.md) | Física Tátil de Botões e Suavização do Overlay de Arquivos | MÉDIA | Plano 002 | ✅ Concluído |
 | [006](006-view-crossfade-home-editor.md) | Transição Suave com Cross-Fade entre Home e Prancheta de Edição | MÉDIA | Plano 002 | ✅ Concluído |
+| [007](007-lgpd-compliance-and-privacy-by-design.md) | Adequação Técnica à LGPD e Privacy by Design | ALTA | Nenhuma | ✅ Concluído |
 
 ---
 

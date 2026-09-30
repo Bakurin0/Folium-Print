@@ -1,5 +1,6 @@
 import { CustomTemplateDefinition, TemplateField } from '../types/template';
 import { sanitizeSvg } from './sanitizeSvg';
+import { sanitizeTemplateDefinition } from './sanitization';
 
 export type ExportFormat = 'folium' | 'json' | 'html';
 
@@ -133,17 +134,22 @@ export const generatePrintableHtml = (template: CustomTemplateDefinition): strin
  */
 export const exportTemplateAsFile = (
   template: CustomTemplateDefinition,
-  format: ExportFormat
+  format: ExportFormat,
+  options?: { sanitizePii?: boolean }
 ): void => {
+  const targetTemplate = options?.sanitizePii
+    ? sanitizeTemplateDefinition(template).sanitized
+    : template;
+
   if (format === 'folium') {
-    const jsonStr = JSON.stringify(template, null, 2);
-    triggerFileDownload(jsonStr, getCleanFilename(template.name, 'folium'), 'application/json');
+    const jsonStr = JSON.stringify(targetTemplate, null, 2);
+    triggerFileDownload(jsonStr, getCleanFilename(targetTemplate.name, 'folium'), 'application/json');
   } else if (format === 'json') {
-    const jsonStr = JSON.stringify(template, null, 2);
-    triggerFileDownload(jsonStr, getCleanFilename(template.name, 'json'), 'application/json');
+    const jsonStr = JSON.stringify(targetTemplate, null, 2);
+    triggerFileDownload(jsonStr, getCleanFilename(targetTemplate.name, 'json'), 'application/json');
   } else if (format === 'html') {
-    const htmlStr = generatePrintableHtml(template);
-    triggerFileDownload(htmlStr, getCleanFilename(template.name, 'html'), 'text/html');
+    const htmlStr = generatePrintableHtml(targetTemplate);
+    triggerFileDownload(htmlStr, getCleanFilename(targetTemplate.name, 'html'), 'text/html');
   }
 };
 

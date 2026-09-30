@@ -74,6 +74,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: [
+          '"Geist Sans"',
           'Geist',
           '-apple-system',
           'BlinkMacSystemFont',
