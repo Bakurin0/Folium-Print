@@ -85,6 +85,11 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
   firstInputRef,
   onClearAll,
 }) => {
+  // Filtra apenas os campos desbloqueados (editáveis pelo operador)
+  const editableFields = React.useMemo(() => {
+    return fields.filter((f) => !f.locked);
+  }, [fields]);
+
   const getFieldIcon = (type: string, isMultiline: boolean) => {
     if (isMultiline) {
       return <AlignLeft className="w-3.5 h-3.5 text-[#3a86ff]" strokeWidth={1.8} aria-hidden="true" />;
@@ -103,13 +108,13 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
     }
   };
 
-  // Limpa todos os campos da etiqueta
+  // Limpa apenas os campos desbloqueados/editáveis da etiqueta
   const handleClearAllFields = () => {
     if (onClearAll) {
       onClearAll();
       return;
     }
-    fields.forEach((f) => onChangeField(f.key, ''));
+    editableFields.forEach((f) => onChangeField(f.key, ''));
   };
 
   return (
@@ -117,32 +122,40 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
       {/* Cabeçalho com Contagem e Ação Rápida */}
       <div className="flex items-center justify-between px-0.5">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground-secondary">
-          Campos da Etiqueta ({fields.length})
+          Campos da Etiqueta ({editableFields.length})
         </span>
 
-        <button
-          type="button"
-          onClick={handleClearAllFields}
-          className="btn-tactile text-[10px] text-foreground-muted hover:text-foreground-primary flex items-center gap-1 hover:bg-black/[0.04] px-1.5 py-0.5 rounded-[4px] transition-colors"
-          title="Limpar o conteúdo de todos os campos"
-        >
-          <RotateCcw className="w-2.5 h-2.5" />
-          <span>Limpar Campos</span>
-        </button>
+        {editableFields.length > 0 && (
+          <button
+            type="button"
+            onClick={handleClearAllFields}
+            className="btn-tactile text-[10px] text-foreground-muted hover:text-foreground-primary flex items-center gap-1 hover:bg-black/[0.04] px-1.5 py-0.5 rounded-[4px] transition-colors"
+            title="Limpar o conteúdo dos campos editáveis"
+          >
+            <RotateCcw className="w-2.5 h-2.5" />
+            <span>Limpar Campos</span>
+          </button>
+        )}
       </div>
 
-      {/* Cartão de Entradas dos Campos */}
-      <div className="bg-surface-card border border-black/[0.06] rounded-[10px] p-3 shadow-xs space-y-3">
-        {fields.map((field, idx) => {
-          const value = formData[field.key] ?? '';
-          const hasValue = String(value).length > 0;
-          const isFirst = idx === 0;
-          const isMultiline = isMultilineField(field);
+      {/* Cartão de Entradas dos Campos ou Estado Vazio */}
+      {editableFields.length === 0 ? (
+        <div className="p-4 text-center text-xs text-foreground-muted bg-surface-subtle rounded-lg border border-dashed border-border space-y-1">
+          <p className="font-medium text-foreground-primary">Todos os campos deste modelo são fixos.</p>
+          <p className="text-[11px]">Nenhum dado variável precisa ser preenchido para impressão.</p>
+        </div>
+      ) : (
+        <div className="bg-surface-card border border-black/[0.06] rounded-[10px] p-3 shadow-xs space-y-3">
+          {editableFields.map((field, idx) => {
+            const value = formData[field.key] ?? '';
+            const hasValue = String(value).length > 0;
+            const isFirst = idx === 0;
+            const isMultiline = isMultilineField(field);
 
-          return (
-            <div key={field.key} className="space-y-1 group">
-              {/* Rótulo e Badges Auxiliares */}
-              <div className="flex items-center justify-between text-xs">
+            return (
+              <div key={field.key} className="space-y-1 group">
+                {/* Rótulo e Badges Auxiliares */}
+                <div className="flex items-center justify-between text-xs">
                 <label
                   htmlFor={`field-${field.key}`}
                   className="font-medium text-foreground-primary flex items-center gap-1.5 text-[11px] cursor-pointer"
@@ -307,6 +320,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
           );
         })}
       </div>
-    </div>
-  );
+    )}
+  </div>
+);
 };

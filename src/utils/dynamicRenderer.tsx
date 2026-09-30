@@ -36,7 +36,9 @@ export const createDynamicRenderer = (template: CustomTemplateDefinition) => {
           const y = field.yMm ?? 2;
           const w = field.widthMm ?? scopeWidth - 4;
           const h = field.heightMm ?? 8;
-          const rawVal = data[field.key] !== undefined ? data[field.key] : (field.defaultValue ?? '');
+          const rawVal = field.locked
+            ? (field.defaultValue ?? '')
+            : (data[field.key] !== undefined ? data[field.key] : (field.defaultValue ?? ''));
           const isCodeOrSvg = field.type === 'svg' || field.type === 'qrcode' || field.type === 'barcode';
           
           let resolvedVal = rawVal;
