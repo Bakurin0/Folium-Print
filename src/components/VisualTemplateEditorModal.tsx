@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { CustomTemplateDefinition, FieldType, TemplateField } from '../types/template';
+import { CustomTemplateDefinition, FieldType, TemplateField, FontWeightOption } from '../types/template';
 import {
   X,
   Trash2,
@@ -27,6 +27,8 @@ import { formatDate } from '../utils/dateUtils';
 import { applySvgAdjustments, getSvgTransformStyle } from '../utils/svgTransform';
 import { SvgPropertiesControl } from './SvgPropertiesControl';
 import { DatePropertiesControl } from './DatePropertiesControl';
+import { FontWeightControl } from './FontWeightControl';
+import { normalizeFontWeight, cycleFontWeight } from '../utils/fontUtils';
 
 interface VisualTemplateEditorModalProps {
   isOpen: boolean;
@@ -56,6 +58,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
   const [backgroundSvgFlipH, setBackgroundSvgFlipH] = useState(false);
   const [backgroundSvgFlipV, setBackgroundSvgFlipV] = useState(false);
   const [backgroundSvgOpacity, setBackgroundSvgOpacity] = useState<number>(0.9);
+  const [defaultFontWeight, setDefaultFontWeight] = useState<FontWeightOption>('normal');
   const [fields, setFields] = useState<TemplateField[]>([]);
   const [selectedFieldKey, setSelectedFieldKey] = useState<string | null>(null);
 
@@ -99,6 +102,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
       setBackgroundSvgFlipH(Boolean(initialTemplate.backgroundSvgFlipH));
       setBackgroundSvgFlipV(Boolean(initialTemplate.backgroundSvgFlipV));
       setBackgroundSvgOpacity(initialTemplate.backgroundSvgOpacity ?? 0.9);
+      setDefaultFontWeight(initialTemplate.defaultFontWeight || 'normal');
 
       // Ensure fields have coordinates
       const loadedFields = initialTemplate.fields.map((f, i) => ({
@@ -192,6 +196,27 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
       prev.map((f) => (f.key === key ? { ...f, ...updates } : f))
     );
   };
+
+  // Atalho de teclado rápido: Ctrl+B / Cmd+B para alternar peso tipográfico (Regular -> Bold -> Extra Bold -> Regular)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        if (selectedFieldKey && selectedField) {
+          if (selectedField.type !== 'qrcode' && selectedField.type !== 'svg' && selectedField.type !== 'barcode') {
+            e.preventDefault();
+            const curWeight = selectedField.fontWeight || defaultFontWeight;
+            const nextWeight = cycleFontWeight(curWeight);
+            handleUpdateField(selectedFieldKey, { fontWeight: nextWeight });
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, selectedFieldKey, selectedField, defaultFontWeight]);
 
   const handleAddField = (type: FieldType, extra?: Partial<TemplateField>) => {
     const key = `campo_${Date.now()}`;
@@ -446,6 +471,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
       backgroundSvgFlipH: backgroundSvgFlipH || undefined,
       backgroundSvgFlipV: backgroundSvgFlipV || undefined,
       backgroundSvgOpacity: backgroundSvgOpacity !== 0.9 ? backgroundSvgOpacity : undefined,
+      defaultFontWeight: defaultFontWeight !== 'normal' ? defaultFontWeight : undefined,
       isCustom: true,
     };
   }, [
@@ -462,7 +488,8 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
     backgroundSvgRotation,
     backgroundSvgFlipH,
     backgroundSvgFlipV,
-    backgroundSvgOpacity
+    backgroundSvgOpacity,
+    defaultFontWeight
   ]);
 
   // Exportar modelo em arquivo (.folium, .json ou .html)
@@ -950,7 +977,7 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                             style={{
                               textAlign: field.textAlign || 'left',
                               fontSize: `${(field.fontSizePt || 8.5) * canvasZoom * 0.9}px`,
-                              fontWeight: field.fontWeight === 'bolder' ? 900 : field.fontWeight === 'bold' ? 700 : 400,
+                              fontWeight: normalizeFontWeight(field.fontWeight, defaultFontWeight),
                             }}
                             className="w-full max-h-full overflow-hidden break-words whitespace-pre-wrap leading-tight text-black"
                           >
@@ -1016,6 +1043,17 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
                     className="w-full px-2 py-1.5 bg-black/[0.035] hover:bg-black/[0.05] focus:bg-white border border-border/80 focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/15 rounded-[6px] font-mono text-xs outline-none transition-colors duration-instant"
                   />
                 </div>
+              </div>
+
+              {/* Peso Padrão do Modelo */}
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-[11px] font-medium text-foreground-primary">Peso Padrão</span>
+                <FontWeightControl
+                  value={defaultFontWeight}
+                  onChange={setDefaultFontWeight}
+                  size="sm"
+                  ariaLabel="Peso de texto padrão do modelo"
+                />
               </div>
 
               {/* Background SVG Control */}
@@ -1190,48 +1228,63 @@ export const VisualTemplateEditorModal: React.FC<VisualTemplateEditorModalProps>
 
                   {/* Configurações Tipográficas / Estilo */}
                   {selectedField.type !== 'qrcode' && selectedField.type !== 'svg' && (
-                    <div className="grid grid-cols-3 gap-1.5">
-                      <div>
-                        <label className="text-[10.5px] font-medium text-foreground-primary block mb-1">Fonte (pt)</label>
-                        <input
-                          type="number"
-                          step={0.5}
-                          min={5}
-                          max={36}
-                          value={selectedField.fontSizePt ?? 9}
-                          onChange={(e) =>
-                            handleUpdateField(selectedField.key, { fontSizePt: parseFloat(e.target.value) || 9 })
-                          }
-                          className="w-full px-2 py-1.5 bg-black/[0.035] hover:bg-black/[0.05] focus:bg-white border border-border/80 focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/15 rounded-[6px] font-mono text-xs outline-none transition-colors duration-instant"
+                    <div className="space-y-2 p-2.5 bg-black/[0.02] rounded-[8px] border border-border/70">
+                      <div className="grid grid-cols-3 gap-1.5">
+                        <div>
+                          <label className="text-[10px] font-medium text-foreground-secondary block mb-1">Fonte (pt)</label>
+                          <input
+                            type="number"
+                            step={0.5}
+                            min={5}
+                            max={36}
+                            value={selectedField.fontSizePt ?? 9}
+                            onChange={(e) =>
+                              handleUpdateField(selectedField.key, { fontSizePt: parseFloat(e.target.value) || 9 })
+                            }
+                            className="w-full px-2 py-1.5 bg-white border border-border/80 focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/15 rounded-[6px] font-mono text-xs outline-none transition-colors duration-instant"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-medium text-foreground-secondary block mb-1">Alinh. Horiz.</label>
+                          <select
+                            value={selectedField.textAlign || 'left'}
+                            onChange={(e) =>
+                              handleUpdateField(selectedField.key, { textAlign: e.target.value as any })
+                            }
+                            className="w-full px-1.5 py-1.5 bg-white border border-border/80 focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/15 rounded-[6px] text-[11px] outline-none transition-colors duration-instant"
+                          >
+                            <option value="left">Esquerda</option>
+                            <option value="center">Centro</option>
+                            <option value="right">Direita</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-medium text-foreground-secondary block mb-1">Alinh. Vert.</label>
+                          <select
+                            value={selectedField.verticalAlign || ((selectedField.heightMm ?? 8) >= 14 ? 'top' : 'middle')}
+                            onChange={(e) =>
+                              handleUpdateField(selectedField.key, { verticalAlign: e.target.value as any })
+                            }
+                            className="w-full px-1.5 py-1.5 bg-white border border-border/80 focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/15 rounded-[6px] text-[11px] outline-none transition-colors duration-instant"
+                          >
+                            <option value="top">Topo</option>
+                            <option value="middle">Meio</option>
+                            <option value="bottom">Base</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Seletor de Peso da Fonte */}
+                      <div className="flex items-center justify-between pt-1.5 border-t border-black/[0.05]">
+                        <span className="text-[10.5px] font-medium text-foreground-secondary">
+                          Peso Tipográfico
+                        </span>
+                        <FontWeightControl
+                          value={selectedField.fontWeight || defaultFontWeight}
+                          onChange={(w) => handleUpdateField(selectedField.key, { fontWeight: w })}
+                          size="sm"
+                          ariaLabel={`Peso tipográfico para ${selectedField.label}`}
                         />
-                      </div>
-                      <div>
-                        <label className="text-[10.5px] font-medium text-foreground-primary block mb-1">Alinh. Horiz.</label>
-                        <select
-                          value={selectedField.textAlign || 'left'}
-                          onChange={(e) =>
-                            handleUpdateField(selectedField.key, { textAlign: e.target.value as any })
-                          }
-                          className="w-full px-1.5 py-1.5 bg-black/[0.035] hover:bg-black/[0.05] focus:bg-white border border-border/80 focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/15 rounded-[6px] text-[11px] outline-none transition-colors duration-instant"
-                        >
-                          <option value="left">Esquerda</option>
-                          <option value="center">Centro</option>
-                          <option value="right">Direita</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-[10.5px] font-medium text-foreground-primary block mb-1">Alinh. Vert.</label>
-                        <select
-                          value={selectedField.verticalAlign || ((selectedField.heightMm ?? 8) >= 14 ? 'top' : 'middle')}
-                          onChange={(e) =>
-                            handleUpdateField(selectedField.key, { verticalAlign: e.target.value as any })
-                          }
-                          className="w-full px-1.5 py-1.5 bg-black/[0.035] hover:bg-black/[0.05] focus:bg-white border border-border/80 focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/15 rounded-[6px] text-[11px] outline-none transition-colors duration-instant"
-                        >
-                          <option value="top">Topo</option>
-                          <option value="middle">Meio</option>
-                          <option value="bottom">Base</option>
-                        </select>
                       </div>
                     </div>
                   )}

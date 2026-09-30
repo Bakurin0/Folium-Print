@@ -1,6 +1,8 @@
 import React from 'react';
-import { TemplateField, TemplateFormData } from '../types/template';
+import { TemplateField, TemplateFormData, FontWeightOption } from '../types/template';
 import { getTodayIso, getTodayFormatted } from '../utils/dateUtils';
+import { FontWeightControl } from './FontWeightControl';
+import { cycleFontWeight } from '../utils/fontUtils';
 import { 
   Barcode, 
   QrCode, 
@@ -17,7 +19,9 @@ import {
 interface DynamicFormProps {
   fields: TemplateField[];
   formData: TemplateFormData;
+  defaultFontWeight?: FontWeightOption;
   onChangeField: (key: string, value: any) => void;
+  onChangeFieldWeight?: (key: string, weight: FontWeightOption) => void;
   firstInputRef?: React.RefObject<HTMLInputElement>;
   onClearAll?: () => void;
 }
@@ -81,7 +85,9 @@ const generateSampleData = (field: TemplateField) => {
 export const DynamicForm: React.FC<DynamicFormProps> = ({
   fields,
   formData,
+  defaultFontWeight = 'normal',
   onChangeField,
+  onChangeFieldWeight,
   firstInputRef,
   onClearAll,
 }) => {
@@ -231,6 +237,16 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                       <span>Hoje</span>
                     </button>
                   )}
+
+                  {/* Seletor Tátil de Peso Tipográfico (Regular / Bold / Extra Bold) */}
+                  {field.type !== 'barcode' && field.type !== 'qrcode' && field.type !== 'svg' && onChangeFieldWeight && (
+                    <FontWeightControl
+                      value={field.fontWeight || defaultFontWeight}
+                      onChange={(w) => onChangeFieldWeight(field.key, w)}
+                      size="sm"
+                      ariaLabel={`Peso da fonte para ${field.label}`}
+                    />
+                  )}
                 </div>
               </div>
 
@@ -246,6 +262,13 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                         onChangeField(field.key, e.target.value);
                         e.target.style.height = 'auto';
                         e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+                      }}
+                      onKeyDown={(e) => {
+                        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b' && onChangeFieldWeight) {
+                          e.preventDefault();
+                          const cur = field.fontWeight || defaultFontWeight;
+                          onChangeFieldWeight(field.key, cycleFontWeight(cur));
+                        }
                       }}
                       placeholder={field.placeholder || `Informe ${field.label.toLowerCase()}`}
                       required={field.required}
@@ -276,6 +299,13 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                       type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
                       value={value}
                       onChange={(e) => onChangeField(field.key, e.target.value)}
+                      onKeyDown={(e) => {
+                        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b' && onChangeFieldWeight) {
+                          e.preventDefault();
+                          const cur = field.fontWeight || defaultFontWeight;
+                          onChangeFieldWeight(field.key, cycleFontWeight(cur));
+                        }
+                      }}
                       placeholder={field.placeholder || `Informe ${field.label.toLowerCase()}`}
                       required={field.required}
                       aria-required={field.required}

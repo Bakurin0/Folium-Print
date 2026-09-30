@@ -13,7 +13,8 @@ import {
   TemplateFormData, 
   CalibrationOffset, 
   ColorAdjustments, 
-  CropMarkSettings 
+  CropMarkSettings,
+  FontWeightOption
 } from '../types/template';
 import { DynamicForm } from './DynamicForm';
 import { SheetGridOptions } from './SheetGridOptions';
@@ -37,6 +38,7 @@ interface InspectorPanelProps {
   paperSelection: PaperSelection;
   firstInputRef?: React.RefObject<HTMLInputElement>;
   onChangeField: (key: string, value: any) => void;
+  onChangeFieldWeight?: (key: string, weight: FontWeightOption) => void;
   onChangeCopies: (copies: number) => void;
   onChangeStartPosition: (startPosition: number) => void;
   onChangeOffset: (offset: CalibrationOffset) => void;
@@ -65,6 +67,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   paperSelection,
   firstInputRef,
   onChangeField,
+  onChangeFieldWeight,
   onChangeCopies,
   onChangeStartPosition,
   onChangeOffset,
@@ -186,7 +189,9 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                 <DynamicForm
                   fields={currentTemplate.fields}
                   formData={formData}
+                  defaultFontWeight={currentTemplate.defaultFontWeight}
                   onChangeField={onChangeField}
+                  onChangeFieldWeight={onChangeFieldWeight}
                   firstInputRef={firstInputRef}
                   onClearAll={onResetForm}
                 />

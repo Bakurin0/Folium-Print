@@ -3,6 +3,7 @@ import { BarcodeSvg, QRCodeSvg } from '../components/CodeRenderer';
 import { resolveCopyTokens } from './paginationTokens';
 import { formatDate, getTodayFormatted } from './dateUtils';
 import { applySvgAdjustments, getSvgTransformStyle } from './svgTransform';
+import { normalizeFontWeight } from './fontUtils';
 
 // ponytail: Uses CSS mm-based absolute coordinates and inline SVG. Native browser layout without canvas/fabric.js dependency.
 // Ceiling: Multi-layer z-index management and complex SVG path node-by-node vector editing is omitted.
@@ -81,7 +82,7 @@ export const createDynamicRenderer = (template: CustomTemplateDefinition) => {
                 overflow: 'hidden',
                 textAlign: field.textAlign || 'left',
                 fontSize: `${field.fontSizePt || 8.5}pt`,
-                fontWeight: field.fontWeight === 'bolder' ? 900 : field.fontWeight === 'bold' ? 700 : 400,
+                fontWeight: normalizeFontWeight(field.fontWeight, template.defaultFontWeight),
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent,

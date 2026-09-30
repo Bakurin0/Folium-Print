@@ -64,11 +64,19 @@ export const useKeyboardShortcuts = ({
         return;
       }
 
-      // Ctrl + B or Cmd + B -> Toggle Left Sidebar
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b' && onToggleLeftSidebar) {
-        e.preventDefault();
-        onToggleLeftSidebar();
-        return;
+      // Se estiver digitando em um campo de texto, preserva atalhos tipográficos locais
+      const isInputFocused =
+        document.activeElement instanceof HTMLInputElement ||
+        document.activeElement instanceof HTMLTextAreaElement ||
+        (document.activeElement as HTMLElement)?.isContentEditable;
+
+      // Ctrl + B or Cmd + B -> Toggle Left Sidebar (apenas quando fora de campos de texto)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        if (!isInputFocused && onToggleLeftSidebar) {
+          e.preventDefault();
+          onToggleLeftSidebar();
+          return;
+        }
       }
 
       // Ctrl + I or Cmd + I -> Toggle Right Inspector

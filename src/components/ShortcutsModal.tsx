@@ -13,7 +13,7 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
     { keys: ['Ctrl / ⌘', 'H'], label: 'Alternar Menu de Início / Dashboard' },
     { keys: ['Ctrl / ⌘', 'P'], label: 'Disparar impressão imediata calibrada' },
     { keys: ['Ctrl / ⌘', 'W'], label: 'Fechar modelo ou arquivo aberto' },
-    { keys: ['Ctrl / ⌘', 'B'], label: 'Mostrar / Ocultar barra lateral de modelos' },
+    { keys: ['Ctrl / ⌘', 'B'], label: 'Alternar peso do texto (R ➔ B ➔ EB) ou barra lateral' },
     { keys: ['Ctrl / ⌘', 'I'], label: 'Mostrar / Ocultar inspetor de ajustes' },
     { keys: ['Ctrl / ⌘', 'Shift / ⌥', 'F'], label: 'Alternar Modo Foco (ocultar barras)' },
     { keys: ['Ctrl / ⌘', 'Enter'], label: 'Confirmar dados e disparar impressão' },

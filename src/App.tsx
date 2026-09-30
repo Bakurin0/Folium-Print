@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, Suspense, lazy } from 'react';
 import gsap from 'gsap';
 import { getDefaultFormData } from './templates';
-import { Template, TemplateFormData, CustomTemplateDefinition } from './types/template';
+import { Template, TemplateFormData, CustomTemplateDefinition, FontWeightOption } from './types/template';
 import { UnifiedToolbar } from './components/UnifiedToolbar';
 import { ModelsSidebar } from './components/ModelsSidebar';
 import { StudioCanvas } from './components/StudioCanvas';
@@ -248,6 +248,17 @@ export const App: React.FC = () => {
     setFormData((prev) => ({ ...prev, _gridStartPosition: startPosition }));
   };
 
+  const handleChangeFieldWeight = useCallback(
+    (fieldKey: string, weight: FontWeightOption) => {
+      if (!currentTemplate) return;
+      const updatedFields = currentTemplate.fields.map((f) =>
+        f.key === fieldKey ? { ...f, fontWeight: weight } : f
+      );
+      updateCurrentTemplateFields(updatedFields);
+    },
+    [currentTemplate, updateCurrentTemplateFields]
+  );
+
   const handleResetForm = useCallback(() => {
     if (!currentTemplate) return;
     setFormData(getDefaultFormData(currentTemplate));
@@ -449,6 +460,7 @@ export const App: React.FC = () => {
           paperSelection={paperSelection}
           firstInputRef={firstInputRef}
           onChangeField={handleChangeField}
+          onChangeFieldWeight={handleChangeFieldWeight}
           onChangeCopies={handleChangeCopies}
           onChangeStartPosition={handleChangeStartPosition}
           onChangeOffset={setOffset}

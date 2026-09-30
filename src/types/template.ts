@@ -8,6 +8,8 @@ export type BarcodeFormat = 'CODE128' | 'EAN13';
 
 export type DateFormat = 'DD/MM/YYYY' | 'DD/MM/AA' | 'DD/MM' | 'YYYY-MM-DD' | 'extended';
 
+export type FontWeightOption = 'normal' | 'bold' | 'extra-bold' | 'bolder';
+
 export interface TemplateField {
   key: string;
   label: string;
@@ -26,7 +28,7 @@ export interface TemplateField {
   widthMm?: number;
   heightMm?: number;
   fontSizePt?: number;
-  fontWeight?: 'normal' | 'bold' | 'bolder';
+  fontWeight?: FontWeightOption;
   textAlign?: 'left' | 'center' | 'right';
   verticalAlign?: 'top' | 'middle' | 'bottom';
   showBorder?: boolean;
@@ -98,6 +100,7 @@ export interface Template {
   backgroundSvgFlipV?: boolean;
   backgroundSvgOpacity?: number;
   isCustom?: boolean;
+  defaultFontWeight?: FontWeightOption;
   render: (props: TemplateRenderProps) => ReactNode;
 }
 

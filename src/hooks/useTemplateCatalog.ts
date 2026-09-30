@@ -115,6 +115,14 @@ export function useTemplateCatalog(
         grid: currentTemplate.grid,
         fields: fields,
         backgroundSvg: currentTemplate.backgroundSvg,
+        backgroundSvgFill: currentTemplate.backgroundSvgFill,
+        backgroundSvgStroke: currentTemplate.backgroundSvgStroke,
+        backgroundSvgStrokeWidth: currentTemplate.backgroundSvgStrokeWidth,
+        backgroundSvgRotation: currentTemplate.backgroundSvgRotation,
+        backgroundSvgFlipH: currentTemplate.backgroundSvgFlipH,
+        backgroundSvgFlipV: currentTemplate.backgroundSvgFlipV,
+        backgroundSvgOpacity: currentTemplate.backgroundSvgOpacity,
+        defaultFontWeight: currentTemplate.defaultFontWeight,
         isCustom: true,
       };
       saveCustomTemplate(def);

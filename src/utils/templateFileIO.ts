@@ -1,6 +1,7 @@
 import { CustomTemplateDefinition, TemplateField } from '../types/template';
 import { sanitizeSvg } from './sanitizeSvg';
 import { sanitizeTemplateDefinition } from './sanitization';
+import { normalizeFontWeight } from './fontUtils';
 
 export type ExportFormat = 'folium' | 'json' | 'html';
 
@@ -45,7 +46,7 @@ export const generatePrintableHtml = (template: CustomTemplateDefinition): strin
     const w = field.widthMm ?? widthMm;
     const h = field.heightMm ?? 8;
     const fontSize = field.fontSizePt ?? 9;
-    const fontWeight = field.fontWeight ?? 'normal';
+    const fontWeight = normalizeFontWeight(field.fontWeight, template.defaultFontWeight);
     const textAlign = field.textAlign ?? 'left';
     const content = field.defaultValue || field.label || '';
 
