@@ -267,6 +267,28 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.05);
 }
 
+/* Floating Dock Pill Material (Apple HIG / Dynamic Island Style) */
+.apple-glass-pill {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  box-shadow: 
+    0 4px 16px -2px rgba(0, 0, 0, 0.06), 
+    0 12px 32px -4px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(0, 0, 0, 0.06);
+  border-radius: 9999px;
+}
+
+/* Clean Number Inputs (Remove crude native browser spinner arrows) */
+input[type="number"].clean-number-input::-webkit-inner-spin-button,
+input[type="number"].clean-number-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"].clean-number-input {
+  -moz-appearance: textfield;
+}
+
 /* Sombra de profundidade física Apple para folha de papel */
 .apple-paper-shadow {
   box-shadow:

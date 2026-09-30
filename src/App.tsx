@@ -1,20 +1,24 @@
 import React, { useState, useRef, useEffect, useCallback, Suspense, lazy } from 'react';
-import gsap from 'gsap';
 import { getDefaultFormData } from './templates';
-import { Template, TemplateFormData, CustomTemplateDefinition, FontWeightOption } from './types/template';
+import { 
+  Template, 
+  TemplateField,
+  FieldType,
+  TemplateFormData, 
+  CustomTemplateDefinition, 
+  FontWeightOption 
+} from './types/template';
 import { UnifiedToolbar } from './components/UnifiedToolbar';
 import { ModelsSidebar } from './components/ModelsSidebar';
 import { StudioCanvas } from './components/StudioCanvas';
 import { InspectorPanel, InspectorTab } from './components/InspectorPanel';
 import { HomeDashboard } from './components/HomeDashboard';
-import { PrinterBootAnimation } from './components/PrinterBootAnimation';
 import { executePixelPerfectPrint } from './utils/printService';
-import { SpeedInsights } from '@vercel/speed-insights/react';
+import { exportTemplateAsFile, ExportFormat } from './utils/templateFileIO';
 
 // Carregamento sob demanda (code-splitting dinâmico) para modais secundários
 const ShortcutsModal = lazy(() => import('./components/ShortcutsModal').then(m => ({ default: m.ShortcutsModal })));
 const PrivacySettingsModal = lazy(() => import('./components/PrivacySettingsModal').then(m => ({ default: m.PrivacySettingsModal })));
-const VisualTemplateEditorModal = lazy(() => import('./components/VisualTemplateEditorModal').then(m => ({ default: m.VisualTemplateEditorModal })));
 import { generateCropMarksSvg } from './utils/cropMarksGenerator';
 import { sanitizeSvg } from './utils/sanitizeSvg';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -48,6 +52,7 @@ export const App: React.FC = () => {
     nextTemplate,
     saveTemplate,
     updateCurrentTemplateFields,
+    updateCurrentTemplate,
     deleteTemplate,
   } = useTemplateCatalog((newTemplate) => {
     setFormData(getDefaultFormData(newTemplate));
@@ -81,11 +86,19 @@ export const App: React.FC = () => {
   const [isPrinting, setIsPrinting] = useState<boolean>(false);
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState<boolean>(false);
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState<boolean>(false);
-  const [isEditorOpen, setIsEditorOpen] = useState<boolean>(false);
-  const [editingTemplate, setEditingTemplate] = useState<CustomTemplateDefinition | null>(null);
-  // Estado de Boot Mecânico da Impressora Térmica (disparado ao abrir modelo na Home)
-  const [isPrinterBooting, setIsPrinterBooting] = useState<boolean>(false);
-  const [bootingTemplate, setBootingTemplate] = useState<Template | null>(null);
+
+  // Modo de Operação do Studio: 'print' (Impressão) vs 'design' (Edição Visual)
+  const [studioMode, setStudioMode] = useState<'print' | 'design'>('print');
+  const [selectedFieldKey, setSelectedFieldKey] = useState<string | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
+
+  // Pilha de Histórico de Undo / Redo no Modo Design
+  const [history, setHistory] = useState<TemplateField[][]>(() =>
+    currentTemplate ? [currentTemplate.fields] : []
+  );
+  const [historyIndex, setHistoryIndex] = useState<number>(() =>
+    currentTemplate ? 0 : -1
+  );
 
   // Nome da impressora do usuário com persistência local
   const [printerName, setPrinterName] = useState<string>(() => {
@@ -149,55 +162,36 @@ export const App: React.FC = () => {
     prevIsHomeOpen.current = isHomeOpen;
 
     if (isHomeOpen) {
-      // Editor -> Home: Afastamento em profundidade (Zoom Out Z)
-      gsap.fromTo(
-        viewContainerRef.current,
-        {
-          opacity: 0,
-          scale: 1.04,
-          z: 50,
-          filter: 'blur(4px)',
-        },
-        {
-          opacity: 1,
-          scale: 1,
-          z: 0,
-          filter: 'blur(0px)',
-          duration: 0.4,
-          ease: 'power2.out',
-          clearProps: 'transform,filter,opacity',
-        }
+      // Editor -> Home: Afastamento suave
+      // ponytail: Native Web Animations API replaces 70kB GSAP bundle
+      viewContainerRef.current.animate(
+        [
+          { opacity: 0, transform: 'scale(1.03)', filter: 'blur(3px)' },
+          { opacity: 1, transform: 'scale(1)', filter: 'blur(0px)' },
+        ],
+        { duration: 320, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' }
       );
     } else {
-      // Home -> Editor: Entrada contínua suave (0 -> 1 em 400ms) sem duplo piscar
-      gsap.fromTo(
-        viewContainerRef.current,
-        {
-          opacity: 0,
-          scale: 0.98,
-        },
-        {
-          opacity: 1,
-          scale: 1,
-          duration: 0.4,
-          ease: 'power2.out',
-          clearProps: 'transform,opacity',
-        }
+      // Home -> Editor: Entrada contínua suave
+      viewContainerRef.current.animate(
+        [
+          { opacity: 0, transform: 'scale(0.98)' },
+          { opacity: 1, transform: 'scale(1)' },
+        ],
+        { duration: 320, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' }
       );
     }
   }, [isHomeOpen]);
 
-  // Seleção de modelo com transição tátil mecânica da impressora para o editor
+  // Seleção de modelo com transição direta e ágil para o estúdio
   const handleSelectTemplate = useCallback(
     (id: string) => {
-      const target = templates.find((t) => t.id === id) || null;
       selectTemplate(id);
       if (isHomeOpen) {
-        setBootingTemplate(target);
-        setIsPrinterBooting(true);
+        setIsHomeOpen(false);
       }
     },
-    [selectTemplate, isHomeOpen, templates]
+    [selectTemplate, isHomeOpen]
   );
 
   // Duplicação de modelo personalizado ou padrão para customizado
@@ -265,15 +259,302 @@ export const App: React.FC = () => {
     showToast('Formulário restaurado para os valores padrão.');
   }, [currentTemplate, showToast]);
 
-  const handleSaveCustomTemplate = (def: CustomTemplateDefinition) => {
-    const saved = saveTemplate(def);
-    if (isHomeOpen) {
-      setBootingTemplate(saved);
-      setIsPrinterBooting(true);
+  // Sincroniza histórico de undo/redo ao trocar de template
+  useEffect(() => {
+    if (currentTemplate) {
+      setHistory([currentTemplate.fields]);
+      setHistoryIndex(0);
+      setHasUnsavedChanges(false);
+      setSelectedFieldKey(null);
     }
+  }, [currentTemplate?.id]);
+
+  const pushHistory = useCallback((nextFields: TemplateField[]) => {
+    setHistory((prev) => {
+      const updated = prev.slice(0, historyIndex + 1);
+      const newStack = [...updated, nextFields];
+      if (newStack.length > 30) newStack.shift();
+      return newStack;
+    });
+    setHistoryIndex((prev) => Math.min(prev + 1, 29));
+    setHasUnsavedChanges(true);
+  }, [historyIndex]);
+
+  const canUndo = historyIndex > 0;
+  const canRedo = historyIndex < history.length - 1;
+
+  const handleUndo = useCallback(() => {
+    if (!canUndo || !currentTemplate) return;
+    const targetFields = history[historyIndex - 1];
+    setHistoryIndex(historyIndex - 1);
+    updateCurrentTemplateFields(targetFields);
+    showToast('Ação desfeita.');
+  }, [canUndo, currentTemplate, history, historyIndex, updateCurrentTemplateFields, showToast]);
+
+  const handleRedo = useCallback(() => {
+    if (!canRedo || !currentTemplate) return;
+    const targetFields = history[historyIndex + 1];
+    setHistoryIndex(historyIndex + 1);
+    updateCurrentTemplateFields(targetFields);
+    showToast('Ação refeita.');
+  }, [canRedo, currentTemplate, history, historyIndex, updateCurrentTemplateFields, showToast]);
+
+  const handleAddField = useCallback((type: FieldType, extra?: Partial<TemplateField>) => {
+    if (!currentTemplate) return;
+    const key = `campo_${Date.now()}`;
+    const isDate = type === 'date' || extra?.isAutoDate;
+    const defaultLabel = isDate
+      ? 'Data'
+      : type === 'barcode'
+      ? 'Código de Barras'
+      : type === 'qrcode'
+      ? 'QR Code'
+      : type === 'svg'
+      ? 'Logotipo SVG'
+      : type === 'textarea'
+      ? 'Observações'
+      : `Campo ${currentTemplate.fields.length + 1}`;
+
+    const defaultVal = isDate
+      ? 'today'
+      : type === 'barcode'
+      ? '123456789'
+      : type === 'qrcode'
+      ? 'https://folium.print'
+      : type === 'textarea'
+      ? 'Texto multilinha aqui...'
+      : 'Texto de exemplo';
+
+    const newField: TemplateField = {
+      key,
+      label: defaultLabel,
+      type,
+      required: false,
+      defaultValue: defaultVal,
+      xMm: 5,
+      yMm: Math.min(currentTemplate.dimensions.heightMm - 10, 5 + currentTemplate.fields.length * 6),
+      widthMm: type === 'qrcode' ? 14 : type === 'svg' ? 20 : isDate ? Math.min(currentTemplate.dimensions.widthMm - 10, 36) : Math.min(currentTemplate.dimensions.widthMm - 10, 60),
+      heightMm: type === 'barcode' ? 16 : type === 'qrcode' ? 14 : type === 'svg' ? 14 : type === 'textarea' ? 16 : 8,
+      fontSizePt: 8.5,
+      fontWeight: 'normal',
+      textAlign: 'left',
+      autoScaleFont: false,
+      showBorder: false,
+      showLabel: type === 'text' || isDate,
+      barcodeFormat: type === 'barcode' ? 'CODE128' : undefined,
+      dateFormat: isDate ? 'DD/MM/YYYY' : undefined,
+      datePrefix: '',
+      isAutoDate: isDate,
+      svgFill: type === 'svg' ? '#000000' : undefined,
+      svgStroke: type === 'svg' ? '' : undefined,
+      svgStrokeWidth: type === 'svg' ? 0 : undefined,
+      svgRotation: 0,
+      svgFlipH: false,
+      svgFlipV: false,
+      ...extra,
+    };
+
+    const nextFields = [...currentTemplate.fields, newField];
+    updateCurrentTemplateFields(nextFields);
+    pushHistory(nextFields);
+    setSelectedFieldKey(key);
+    showToast(`Elemento "${defaultLabel}" adicionado`);
+  }, [currentTemplate, updateCurrentTemplateFields, pushHistory, showToast]);
+
+  const handleRemoveField = useCallback((key: string) => {
+    if (!currentTemplate || currentTemplate.fields.length <= 1) {
+      showToast('O modelo precisa ter pelo menos um elemento.');
+      return;
+    }
+    const nextFields = currentTemplate.fields.filter((f) => f.key !== key);
+    updateCurrentTemplateFields(nextFields);
+    pushHistory(nextFields);
+    if (selectedFieldKey === key) {
+      setSelectedFieldKey(nextFields[0]?.key || null);
+    }
+    showToast('Elemento removido.');
+  }, [currentTemplate, selectedFieldKey, updateCurrentTemplateFields, pushHistory, showToast]);
+
+  const handleDuplicateField = useCallback((field: TemplateField) => {
+    if (!currentTemplate) return;
+    const newKey = `campo_${Date.now()}`;
+    const duplicated: TemplateField = {
+      ...field,
+      key: newKey,
+      label: `${field.label} (Cópia)`,
+      xMm: Math.min(currentTemplate.dimensions.widthMm - (field.widthMm ?? 30), (field.xMm ?? 0) + 3),
+      yMm: Math.min(currentTemplate.dimensions.heightMm - (field.heightMm ?? 8), (field.yMm ?? 0) + 3),
+    };
+    const nextFields = [...currentTemplate.fields, duplicated];
+    updateCurrentTemplateFields(nextFields);
+    pushHistory(nextFields);
+    setSelectedFieldKey(newKey);
+    showToast('Elemento duplicado.');
+  }, [currentTemplate, updateCurrentTemplateFields, pushHistory, showToast]);
+
+  const handleToggleLockField = useCallback((key: string) => {
+    if (!currentTemplate) return;
+    const nextFields = currentTemplate.fields.map((f) =>
+      f.key === key ? { ...f, locked: !f.locked } : f
+    );
+    updateCurrentTemplateFields(nextFields);
+    pushHistory(nextFields);
+  }, [currentTemplate, updateCurrentTemplateFields, pushHistory]);
+
+  const handleUpdateField = useCallback((key: string, updates: Partial<TemplateField>) => {
+    if (!currentTemplate) return;
+    const nextFields = currentTemplate.fields.map((f) =>
+      f.key === key ? { ...f, ...updates } : f
+    );
+    updateCurrentTemplateFields(nextFields);
+    pushHistory(nextFields);
+  }, [currentTemplate, updateCurrentTemplateFields, pushHistory]);
+
+  const handleUpdateTemplateProps = useCallback((updates: Partial<Template>) => {
+    if (!currentTemplate) return;
+    updateCurrentTemplate(updates);
+    setHasUnsavedChanges(true);
+  }, [currentTemplate, updateCurrentTemplate]);
+
+  const handleSaveTemplate = useCallback(() => {
+    if (!currentTemplate) return;
+    if (currentTemplate.isCustom) {
+      updateCurrentTemplate({});
+      setHasUnsavedChanges(false);
+      showToast('Modelo personalizado salvo com sucesso!');
+    } else {
+      const customDef: CustomTemplateDefinition = {
+        id: `custom_${Date.now()}`,
+        name: `${currentTemplate.name} (Personalizado)`,
+        category: currentTemplate.category,
+        description: currentTemplate.description || 'Modelo personalizado criado a partir de modelo nativo.',
+        dimensions: { ...currentTemplate.dimensions },
+        grid: currentTemplate.grid,
+        fields: [...currentTemplate.fields],
+        backgroundSvg: currentTemplate.backgroundSvg,
+        backgroundSvgFill: currentTemplate.backgroundSvgFill,
+        backgroundSvgStroke: currentTemplate.backgroundSvgStroke,
+        backgroundSvgStrokeWidth: currentTemplate.backgroundSvgStrokeWidth,
+        backgroundSvgRotation: currentTemplate.backgroundSvgRotation,
+        backgroundSvgFlipH: currentTemplate.backgroundSvgFlipH,
+        backgroundSvgFlipV: currentTemplate.backgroundSvgFlipV,
+        backgroundSvgOpacity: currentTemplate.backgroundSvgOpacity,
+        defaultFontWeight: currentTemplate.defaultFontWeight,
+        isCustom: true,
+      };
+      const saved = saveTemplate(customDef);
+      selectTemplate(saved.id);
+      setHasUnsavedChanges(false);
+      showToast('Novo modelo personalizado criado e salvo!');
+    }
+  }, [currentTemplate, updateCurrentTemplate, saveTemplate, selectTemplate, showToast]);
+
+  const handleDiscardChanges = useCallback(() => {
+    if (!currentTemplate) return;
+    selectTemplate(currentTemplate.id);
+    setHasUnsavedChanges(false);
+    showToast('Alterações descartadas.');
+  }, [currentTemplate, selectTemplate, showToast]);
+
+  const handleCreateNewBlankTemplate = useCallback(() => {
+    const newDef: CustomTemplateDefinition = {
+      id: `custom_${Date.now()}`,
+      name: 'Nova Etiqueta Personalizada',
+      category: 'thermal',
+      description: 'Etiqueta térmica em branco criada no Studio.',
+      dimensions: {
+        widthMm: 80,
+        heightMm: 50,
+        orientation: 'landscape',
+      },
+      fields: [
+        {
+          key: 'titulo',
+          label: 'Título Principal',
+          type: 'text',
+          required: true,
+          defaultValue: 'FOLIUM PRINT',
+          xMm: 5,
+          yMm: 5,
+          widthMm: 70,
+          heightMm: 10,
+          fontSizePt: 12,
+          fontWeight: 'bold',
+          textAlign: 'center',
+          showLabel: false,
+        },
+        {
+          key: 'codigo',
+          label: 'Código de Barras',
+          type: 'barcode',
+          required: false,
+          defaultValue: '7891234567890',
+          barcodeFormat: 'CODE128',
+          xMm: 5,
+          yMm: 18,
+          widthMm: 70,
+          heightMm: 18,
+          showLabel: false,
+        },
+        {
+          key: 'data_emissao',
+          label: 'Data',
+          type: 'date',
+          required: false,
+          defaultValue: 'today',
+          dateFormat: 'DD/MM/YYYY',
+          isAutoDate: true,
+          datePrefix: 'Data: ',
+          xMm: 5,
+          yMm: 38,
+          widthMm: 40,
+          heightMm: 7,
+          fontSizePt: 8,
+          showLabel: false,
+        },
+      ],
+      isCustom: true,
+    };
+
+    const created = saveTemplate(newDef);
+    selectTemplate(created.id);
+    setStudioMode('design');
     setIsHomeOpen(false);
-    showToast(`Modelo "${saved.name}" salvo com sucesso!`);
-  };
+    showToast('Nova etiqueta criada! Pronto para edição de design.');
+  }, [saveTemplate, selectTemplate, showToast]);
+
+  const handleExportTemplate = useCallback((format: ExportFormat) => {
+    if (!currentTemplate) return;
+    const def: CustomTemplateDefinition = {
+      id: currentTemplate.id,
+      name: currentTemplate.name,
+      category: currentTemplate.category,
+      description: currentTemplate.description,
+      dimensions: currentTemplate.dimensions,
+      grid: currentTemplate.grid,
+      fields: currentTemplate.fields,
+      backgroundSvg: currentTemplate.backgroundSvg,
+      backgroundSvgFill: currentTemplate.backgroundSvgFill,
+      backgroundSvgStroke: currentTemplate.backgroundSvgStroke,
+      backgroundSvgStrokeWidth: currentTemplate.backgroundSvgStrokeWidth,
+      backgroundSvgRotation: currentTemplate.backgroundSvgRotation,
+      backgroundSvgFlipH: currentTemplate.backgroundSvgFlipH,
+      backgroundSvgFlipV: currentTemplate.backgroundSvgFlipV,
+      backgroundSvgOpacity: currentTemplate.backgroundSvgOpacity,
+      defaultFontWeight: currentTemplate.defaultFontWeight,
+      isCustom: true,
+    };
+    exportTemplateAsFile(def, format);
+    showToast(`Modelo exportado em formato ${format.toUpperCase()}`);
+  }, [currentTemplate, showToast]);
+
+  const handleImportTemplate = useCallback((def: CustomTemplateDefinition) => {
+    const saved = saveTemplate(def);
+    selectTemplate(saved.id);
+    setStudioMode('design');
+    setIsHomeOpen(false);
+    showToast(`Modelo "${saved.name}" importado com sucesso!`);
+  }, [saveTemplate, selectTemplate, showToast]);
 
   const handleDeleteCustomTemplate = (id: string) => {
     deleteTemplate(id);
@@ -327,36 +608,20 @@ export const App: React.FC = () => {
     onReset: handleResetForm,
     onCloseFile: handleCloseFile,
     onToggleHome: () => setIsHomeOpen((prev) => !prev),
+    onToggleStudioMode: () => setStudioMode((prev) => (prev === 'print' ? 'design' : 'print')),
     onToggleShortcutsModal: () => setIsShortcutsModalOpen((prev) => !prev),
     onToggleLeftSidebar: () => setIsLeftSidebarOpen((prev) => !prev),
     onToggleRightSidebar: () => setIsRightSidebarOpen((prev) => !prev),
     onToggleFocusMode: handleToggleFocusMode,
-    isModalOpen: isShortcutsModalOpen || isEditorOpen || isPrivacyModalOpen,
+    isModalOpen: isShortcutsModalOpen || isPrivacyModalOpen,
     onCloseModal: () => {
       setIsShortcutsModalOpen(false);
-      setIsEditorOpen(false);
       setIsPrivacyModalOpen(false);
     },
   });
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-surface-app text-foreground-primary">
-      {/* Animação Tátil de Boot: Impressora Térmica Alimentando o Papel */}
-      {isPrinterBooting && (
-        <PrinterBootAnimation
-          activeTemplate={bootingTemplate || currentTemplate}
-          formData={formData}
-          printerName={printerName}
-          onRevealStudio={() => {
-            setIsHomeOpen(false);
-          }}
-          onComplete={() => {
-            setIsHomeOpen(false);
-            setIsPrinterBooting(false);
-            setBootingTemplate(null);
-          }}
-        />
-      )}
 
       {/* Skip Link de Acessibilidade (WCAG 2.4.1) */}
       <a
@@ -385,6 +650,8 @@ export const App: React.FC = () => {
         productionCount={productionCount}
         isHomeOpen={isHomeOpen}
         onToggleHome={() => setIsHomeOpen((prev) => !prev)}
+        studioMode={studioMode}
+        onToggleStudioMode={setStudioMode}
       />
 
       {/* 2. Conteúdo Principal: Transição 3D Cinemática (Home ⇄ Editor) */}
@@ -399,14 +666,8 @@ export const App: React.FC = () => {
               currentTemplate={currentTemplate}
               customTemplates={customTemplates}
               onSelectTemplate={handleSelectTemplate}
-              onOpenCreateModal={() => {
-                setEditingTemplate(null);
-                setIsEditorOpen(true);
-              }}
-              onImportTemplate={(def) => {
-                const saved = saveTemplate(def);
-                handleSelectTemplate(saved.id);
-              }}
+              onOpenCreateModal={handleCreateNewBlankTemplate}
+              onImportTemplate={handleImportTemplate}
               onDeleteCustomTemplate={handleDeleteCustomTemplate}
               onDuplicateTemplate={handleDuplicateTemplate}
               onReturnToEditor={() => setIsHomeOpen(false)}
@@ -421,13 +682,11 @@ export const App: React.FC = () => {
             selectedTemplateId={selectedTemplateId}
             isOpen={isLeftSidebarOpen}
             onSelectTemplate={handleSelectTemplate}
-            onOpenCreateModal={() => {
-              setEditingTemplate(null);
-              setIsEditorOpen(true);
-            }}
+            onOpenCreateModal={handleCreateNewBlankTemplate}
             onEditCustomTemplate={(tpl) => {
-              setEditingTemplate(tpl);
-              setIsEditorOpen(true);
+              selectTemplate(tpl.id);
+              setStudioMode('design');
+              setIsHomeOpen(false);
             }}
             onDeleteCustomTemplate={handleDeleteCustomTemplate}
           />
@@ -440,11 +699,23 @@ export const App: React.FC = () => {
           colorAdjustments={colorAdjustments}
           cropMarks={cropMarks}
           onUpdateTemplateFields={updateCurrentTemplateFields}
-          onCreateTemplate={() => {
-            setEditingTemplate(null);
-            setIsEditorOpen(true);
-          }}
+          onCreateTemplate={handleCreateNewBlankTemplate}
           onOpenHome={() => setIsHomeOpen(true)}
+          studioMode={studioMode}
+          selectedFieldKey={selectedFieldKey}
+          onSelectFieldKey={setSelectedFieldKey}
+          onAddField={handleAddField}
+          onRemoveField={handleRemoveField}
+          onDuplicateField={handleDuplicateField}
+          onToggleLockField={handleToggleLockField}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          onInlineEditCommit={(key, val) => {
+            handleUpdateField(key, { defaultValue: val });
+            handleChangeField(key, val);
+          }}
         />
 
         {/* Coluna 3: Inspector de Ajustes (Retrátil com Segmented Control) */}
@@ -471,6 +742,17 @@ export const App: React.FC = () => {
           onExportPdf={handlePrint}
           printerName={printerName}
           onChangePrinterName={handleUpdatePrinterName}
+          studioMode={studioMode}
+          selectedFieldKey={selectedFieldKey}
+          onUpdateField={handleUpdateField}
+          onRemoveField={handleRemoveField}
+          onDuplicateField={handleDuplicateField}
+          onUpdateTemplateProps={handleUpdateTemplateProps}
+          onSaveTemplate={handleSaveTemplate}
+          onDiscardChanges={handleDiscardChanges}
+          hasUnsavedChanges={hasUnsavedChanges}
+          onExportTemplate={handleExportTemplate}
+          onImportTemplate={handleImportTemplate}
         />
       </main>
       )}
@@ -570,18 +852,6 @@ export const App: React.FC = () => {
 
       {/* Modais com Carregamento Sob Demanda (Suspense) */}
       <Suspense fallback={null}>
-        {isEditorOpen && (
-          <VisualTemplateEditorModal
-            isOpen={isEditorOpen}
-            initialTemplate={editingTemplate}
-            onClose={() => {
-              setIsEditorOpen(false);
-              setEditingTemplate(null);
-            }}
-            onSave={handleSaveCustomTemplate}
-          />
-        )}
-
         {isShortcutsModalOpen && (
           <ShortcutsModal
             isOpen={isShortcutsModalOpen}
@@ -615,9 +885,6 @@ export const App: React.FC = () => {
           <span>{toastState.message}</span>
         </div>
       )}
-
-      {/* Vercel Speed Insights */}
-      <SpeedInsights />
     </div>
   );
 };

@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react'
 import { 
   Template, 
   TemplateField,
+  FieldType,
   CalibrationOffset, 
   TemplateFormData, 
   ColorAdjustments, 
@@ -11,6 +12,7 @@ import { generateCropMarksSvg } from '../utils/cropMarksGenerator';
 import { sanitizeSvg } from '../utils/sanitizeSvg';
 import { MM_TO_PX } from '../utils/units';
 import { Layers, Plus, ChevronLeft, ChevronRight, Copy, Lock, Home } from 'lucide-react';
+import { StudioFloatingDock } from './StudioFloatingDock';
 
 interface StudioCanvasProps {
   template: Template | null;
@@ -22,13 +24,27 @@ interface StudioCanvasProps {
   onCreateTemplate?: () => void;
   onOpenHome?: () => void;
   onUpdateTemplateFields?: (fields: TemplateField[]) => void;
+  // Propriedades unificadas do Modo Design
+  studioMode?: 'print' | 'design';
+  selectedFieldKey?: string | null;
+  onSelectFieldKey?: (key: string | null) => void;
+  onAddField?: (type: FieldType, extra?: Partial<TemplateField>) => void;
+  onRemoveField?: (key: string) => void;
+  onDuplicateField?: (field: TemplateField) => void;
+  onToggleLockField?: (key: string) => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  onInlineEditCommit?: (key: string, newText: string) => void;
 }
 
 export type ZoomMode = 'fit' | '100' | '150' | '200';
 
 /**
- * Studio Canvas - Prancheta de Visualização WYSIWYG
- * Focada na fidelidade da folha física com controles ágeis de zoom, centralização e manipulação magnética direta.
+ * Studio Canvas - Prancheta Unificada WYSIWYG & Editor Direto
+ * Focada na fidelidade da folha física com controles de zoom, manipulação magnética direta,
+ * edição inline de texto via duplo clique e Floating Dock de ferramentas de design.
  */
 export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   template,
@@ -40,12 +56,46 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   onCreateTemplate,
   onOpenHome,
   onUpdateTemplateFields,
+  studioMode = 'print',
+  selectedFieldKey: controlledSelectedFieldKey,
+  onSelectFieldKey,
+  onAddField,
+  onRemoveField,
+  onDuplicateField,
+  onToggleLockField,
+  canUndo = false,
+  canRedo = false,
+  onUndo,
+  onRedo,
+  onInlineEditCommit,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const paperRef = useRef<HTMLDivElement | null>(null);
   const [zoomMode, setZoomMode] = useState<ZoomMode>('fit');
   const [fitScale, setFitScale] = useState<number>(1);
   const [previewCopyIndex, setPreviewCopyIndex] = useState<number>(1);
+
+  // Seleção de Campo (Controlada ou Não-Controlada)
+  const [internalSelectedKey, setInternalSelectedKey] = useState<string | null>(null);
+  const selectedFieldKey = controlledSelectedFieldKey !== undefined ? controlledSelectedFieldKey : internalSelectedKey;
+
+  const handleSelectField = useCallback((key: string | null) => {
+    if (onSelectFieldKey) {
+      onSelectFieldKey(key);
+    } else {
+      setInternalSelectedKey(key);
+    }
+  }, [onSelectFieldKey]);
+
+  // Edição Inline de Texto (Duplo Clique)
+  const [editingInlineKey, setEditingInlineKey] = useState<string | null>(null);
+  const [inlineValue, setInlineValue] = useState<string>('');
+  const inlineInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+
+  const selectedField = useMemo(() => {
+    if (!template || !selectedFieldKey) return null;
+    return template.fields.find((f) => f.key === selectedFieldKey) || null;
+  }, [template, selectedFieldKey]);
 
   const totalThermalCopies = Number(formData._thermalCopies ?? 1);
   const effectivePreviewIndex = Math.min(Math.max(1, previewCopyIndex), Math.max(1, totalThermalCopies));
@@ -118,8 +168,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     );
   }, [template, cropMarks]);
 
-  // 4. Manipulação Magnética Direta no Canvas (Emil Kowalski Design Engineering & Fluid Interfaces)
-  const [selectedFieldKey, setSelectedFieldKey] = useState<string | null>(null);
+  // 4. Manipulação Magnética Direta no Canvas
   const [hoveredFieldKey, setHoveredFieldKey] = useState<string | null>(null);
   const [activeDraggingKey, setActiveDraggingKey] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<{
@@ -144,7 +193,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     if (!onUpdateTemplateFields) return;
     e.stopPropagation();
     e.preventDefault();
-    setSelectedFieldKey(field.key);
+    handleSelectField(field.key);
     if (field.locked) return; // Não arrasta caixas bloqueadas
     setActiveDraggingKey(field.key);
     setDragOffset({
@@ -216,46 +265,24 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
         detectedGuides.y = heightMm / 2;
       }
 
-      // Snap magnético com outras caixas irmãs
-      template.fields.forEach((other) => {
-        if (other.key === activeDraggingKey) return;
-        const ox = other.xMm ?? 0;
-        const oy = other.yMm ?? 0;
-        const ow = other.widthMm ?? 30;
-        const oh = other.heightMm ?? 8;
-
-        // Alinhamento à esquerda
-        if (Math.abs(snappedX - ox) <= magneticThreshold) {
-          snappedX = ox;
-          detectedGuides.x = ox;
-        }
-        // Alinhamento à direita
-        if (Math.abs(snappedX + fieldW - (ox + ow)) <= magneticThreshold) {
-          snappedX = ox + ow - fieldW;
-          detectedGuides.x = ox + ow;
-        }
-        // Alinhamento ao topo
-        if (Math.abs(snappedY - oy) <= magneticThreshold) {
-          snappedY = oy;
-          detectedGuides.y = oy;
-        }
-        // Alinhamento à base
-        if (Math.abs(snappedY + fieldH - (oy + oh)) <= magneticThreshold) {
-          snappedY = oy + oh - fieldH;
-          detectedGuides.y = oy + oh;
-        }
-      });
-
-      // Limitar aos contornos da folha
-      const clampedX = Math.max(0, Math.min(widthMm - fieldW, snappedX));
-      const clampedY = Math.max(0, Math.min(heightMm - fieldH, snappedY));
+      // Limites rígidos de contenção física dentro da folha
+      const boundedX = Math.max(0, Math.min(widthMm - fieldW, snappedX));
+      const boundedY = Math.max(0, Math.min(heightMm - fieldH, snappedY));
 
       setActiveGuides(detectedGuides);
 
-      const updatedFields = template.fields.map((f) =>
-        f.key === activeDraggingKey ? { ...f, xMm: clampedX, yMm: clampedY } : f
-      );
-      onUpdateTemplateFields(updatedFields);
+      const nextFields = template.fields.map((f) => {
+        if (f.key === activeDraggingKey) {
+          return {
+            ...f,
+            xMm: boundedX,
+            yMm: boundedY,
+          };
+        }
+        return f;
+      });
+
+      onUpdateTemplateFields(nextFields);
     },
     [activeDraggingKey, dragOffset, template, onUpdateTemplateFields, effectiveScale, widthMm, heightMm]
   );
@@ -269,7 +296,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     setActiveGuides({});
   };
 
-  // Redimensionamento com 8 alças no Canvas
+  // Direct Manipulation: Redimensionamento por Alças (8 Handles)
   const handleResizePointerDown = (
     e: React.PointerEvent<HTMLDivElement>,
     handle: 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w',
@@ -278,8 +305,8 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     if (!onUpdateTemplateFields) return;
     e.stopPropagation();
     e.preventDefault();
-    setSelectedFieldKey(field.key);
-    if (field.locked) return; // Não redimensiona caixas bloqueadas
+    handleSelectField(field.key);
+    if (field.locked) return; // Bloqueado
     setResizing({
       handle,
       mouseX: e.clientX,
@@ -288,7 +315,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       initY: field.yMm ?? 0,
       initW: field.widthMm ?? 30,
       initH: field.heightMm ?? 8,
-      initFontSize: field.fontSizePt ?? 9,
+      initFontSize: field.fontSizePt ?? 8.5,
     });
     e.currentTarget.setPointerCapture(e.pointerId);
   };
@@ -303,78 +330,85 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       const deltaMmX = deltaPixelX / (MM_TO_PX * effectiveScale);
       const deltaMmY = deltaPixelY / (MM_TO_PX * effectiveScale);
 
-      const { initX, initY, initW, initH, initFontSize, handle } = resizing;
+      let newX = resizing.initX;
+      let newY = resizing.initY;
+      let newW = resizing.initW;
+      let newH = resizing.initH;
 
-      let newX = initX;
-      let newY = initY;
-      let newW = initW;
-      let newH = initH;
+      const minW = 4;
+      const minH = 3;
 
-      const minW = 5;
-      const minH = 4;
-
-      // Redimensionamento horizontal
-      if (handle.includes('e')) {
-        newW = Math.max(minW, Math.min(widthMm - initX, initW + deltaMmX));
-      } else if (handle.includes('w')) {
-        const candidateW = Math.max(minW, initW - deltaMmX);
-        const candidateX = initX + (initW - candidateW);
-        if (candidateX >= 0) {
-          newW = candidateW;
-          newX = candidateX;
-        }
+      switch (resizing.handle) {
+        case 'se':
+          newW = Math.max(minW, resizing.initW + deltaMmX);
+          newH = Math.max(minH, resizing.initH + deltaMmY);
+          break;
+        case 'e':
+          newW = Math.max(minW, resizing.initW + deltaMmX);
+          break;
+        case 's':
+          newH = Math.max(minH, resizing.initH + deltaMmY);
+          break;
+        case 'sw':
+          newW = Math.max(minW, resizing.initW - deltaMmX);
+          newX = resizing.initX + (resizing.initW - newW);
+          newH = Math.max(minH, resizing.initH + deltaMmY);
+          break;
+        case 'w':
+          newW = Math.max(minW, resizing.initW - deltaMmX);
+          newX = resizing.initX + (resizing.initW - newW);
+          break;
+        case 'nw':
+          newW = Math.max(minW, resizing.initW - deltaMmX);
+          newX = resizing.initX + (resizing.initW - newW);
+          newH = Math.max(minH, resizing.initH - deltaMmY);
+          newY = resizing.initY + (resizing.initH - newH);
+          break;
+        case 'n':
+          newH = Math.max(minH, resizing.initH - deltaMmY);
+          newY = resizing.initY + (resizing.initH - newH);
+          break;
+        case 'ne':
+          newW = Math.max(minW, resizing.initW + deltaMmX);
+          newH = Math.max(minH, resizing.initH - deltaMmY);
+          newY = resizing.initY + (resizing.initH - newH);
+          break;
       }
 
-      // Redimensionamento vertical
-      if (handle.includes('s')) {
-        newH = Math.max(minH, Math.min(heightMm - initY, initH + deltaMmY));
-      } else if (handle.includes('n')) {
-        const candidateH = Math.max(minH, initH - deltaMmY);
-        const candidateY = initY + (initH - candidateH);
-        if (candidateY >= 0) {
-          newH = candidateH;
-          newY = candidateY;
-        }
-      }
-
-      // Encaixe magnético na grade de 0.5 mm
+      // Encaixe Magnético (Snap a cada 0.5 mm)
       newX = Math.round(newX * 2) / 2;
       newY = Math.round(newY * 2) / 2;
       newW = Math.round(newW * 2) / 2;
       newH = Math.round(newH * 2) / 2;
 
-      // Escalar proporcionalmente o tamanho da fonte apenas quando autoScaleFont for explicitamente ativado,
-      // respeitando um teto de segurança (máx 16pt) para evitar distorção tipográfica em etiquetas térmicas.
+      // Limites de contenção dentro da folha
+      newX = Math.max(0, Math.min(widthMm - minW, newX));
+      newY = Math.max(0, Math.min(heightMm - minH, newY));
+      newW = Math.min(widthMm - newX, newW);
+      newH = Math.min(heightMm - newY, newH);
+
       const targetField = template.fields.find((f) => f.key === selectedFieldKey);
-      let calculatedFontSizePt: number | undefined = undefined;
-      if (
-        targetField &&
-        targetField.autoScaleFont === true &&
-        targetField.type !== 'barcode' &&
-        targetField.type !== 'qrcode' &&
-        targetField.type !== 'svg'
-      ) {
-        const ratio = newH / initH;
-        if (initFontSize > 0) {
-          const maxHeightPt = Math.floor(newH * 2.83 * 0.75);
-          const scaledPt = Math.round(initFontSize * ratio * 2) / 2;
-          calculatedFontSizePt = Math.max(5, Math.min(maxHeightPt, 16, scaledPt));
-        }
+      let newFontSize = targetField?.fontSizePt;
+      if (targetField?.autoScaleFont && resizing.initH > 0) {
+        const scaleFactor = newH / resizing.initH;
+        newFontSize = Math.max(5, Math.min(72, Math.round(resizing.initFontSize * scaleFactor * 10) / 10));
       }
 
-      const updatedFields = template.fields.map((f) =>
-        f.key === selectedFieldKey
-          ? {
-              ...f,
-              xMm: newX,
-              yMm: newY,
-              widthMm: newW,
-              heightMm: newH,
-              ...(calculatedFontSizePt ? { fontSizePt: calculatedFontSizePt } : {}),
-            }
-          : f
-      );
-      onUpdateTemplateFields(updatedFields);
+      const nextFields = template.fields.map((f) => {
+        if (f.key === selectedFieldKey) {
+          return {
+            ...f,
+            xMm: newX,
+            yMm: newY,
+            widthMm: newW,
+            heightMm: newH,
+            fontSizePt: newFontSize,
+          };
+        }
+        return f;
+      });
+
+      onUpdateTemplateFields(nextFields);
     },
     [resizing, selectedFieldKey, template, onUpdateTemplateFields, effectiveScale, widthMm, heightMm]
   );
@@ -386,15 +420,172 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     setResizing(null);
   };
 
+  // 5. Edição Inline de Texto (Duplo Clique)
+  const handleDoubleClickBox = (field: TemplateField) => {
+    if (studioMode !== 'design') return;
+    if (field.type === 'svg') return;
+    const currentVal = formData[field.key] !== undefined ? formData[field.key] : (field.defaultValue ?? '');
+    setEditingInlineKey(field.key);
+    setInlineValue(String(currentVal));
+  };
+
+  const handleCommitInlineEdit = useCallback(() => {
+    if (!editingInlineKey) return;
+    if (onInlineEditCommit) {
+      onInlineEditCommit(editingInlineKey, inlineValue);
+    } else if (onUpdateTemplateFields && template) {
+      const nextFields = template.fields.map((f) =>
+        f.key === editingInlineKey ? { ...f, defaultValue: inlineValue } : f
+      );
+      onUpdateTemplateFields(nextFields);
+    }
+    setEditingInlineKey(null);
+  }, [editingInlineKey, inlineValue, onInlineEditCommit, onUpdateTemplateFields, template]);
+
+  useEffect(() => {
+    if (editingInlineKey && inlineInputRef.current) {
+      inlineInputRef.current.focus();
+      inlineInputRef.current.select();
+    }
+  }, [editingInlineKey]);
+
+  // 6. Atalhos de Teclado no Canvas em Modo Design
+  useEffect(() => {
+    if (studioMode !== 'design') return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Se estiver editando inline ou com foco em input, ignorar teclas globais
+      const activeTag = document.activeElement?.tagName.toLowerCase();
+      const isInputFocused = activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select';
+      if (editingInlineKey || isInputFocused) {
+        if (e.key === 'Escape' && editingInlineKey) {
+          e.preventDefault();
+          setEditingInlineKey(null);
+        }
+        return;
+      }
+
+      // Desfazer (Ctrl+Z / Cmd+Z)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        if (canUndo && onUndo) onUndo();
+        return;
+      }
+
+      // Refazer (Ctrl+Y / Cmd+Shift+Z)
+      if (
+        ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') ||
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z')
+      ) {
+        e.preventDefault();
+        if (canRedo && onRedo) onRedo();
+        return;
+      }
+
+      // Duplicar (Ctrl+D / Cmd+D)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+        if (selectedField && onDuplicateField) {
+          e.preventDefault();
+          onDuplicateField(selectedField);
+        }
+        return;
+      }
+
+      // Excluir (Delete / Backspace)
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedFieldKey && onRemoveField) {
+          e.preventDefault();
+          onRemoveField(selectedFieldKey);
+        }
+        return;
+      }
+
+      // Desselecionar (Escape)
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleSelectField(null);
+        return;
+      }
+
+      // Mover com Setas do Teclado
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key) && selectedField && onUpdateTemplateFields && template) {
+        if (selectedField.locked) return;
+        e.preventDefault();
+        const step = e.shiftKey ? 0.2 : e.altKey ? 5.0 : 1.0;
+        let deltaX = 0;
+        let deltaY = 0;
+        if (e.key === 'ArrowLeft') deltaX = -step;
+        if (e.key === 'ArrowRight') deltaX = step;
+        if (e.key === 'ArrowUp') deltaY = -step;
+        if (e.key === 'ArrowDown') deltaY = step;
+
+        const curX = selectedField.xMm ?? 0;
+        const curY = selectedField.yMm ?? 0;
+        const curW = selectedField.widthMm ?? 30;
+        const curH = selectedField.heightMm ?? 8;
+
+        const nextX = Math.max(0, Math.min(widthMm - curW, Math.round((curX + deltaX) * 10) / 10));
+        const nextY = Math.max(0, Math.min(heightMm - curH, Math.round((curY + deltaY) * 10) / 10));
+
+        const nextFields = template.fields.map((f) =>
+          f.key === selectedField.key ? { ...f, xMm: nextX, yMm: nextY } : f
+        );
+        onUpdateTemplateFields(nextFields);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    studioMode,
+    editingInlineKey,
+    selectedFieldKey,
+    selectedField,
+    canUndo,
+    canRedo,
+    onUndo,
+    onRedo,
+    onDuplicateField,
+    onRemoveField,
+    handleSelectField,
+    onUpdateTemplateFields,
+    template,
+    widthMm,
+    heightMm,
+  ]);
+
   return (
     <div
       role="region"
       aria-label="Área de visualização da folha de impressão"
       className="relative flex-1 h-full w-full bg-[#f2f2f4] overflow-hidden flex flex-col select-none"
     >
+      {/* Barra Flutuante de Ferramentas (Floating Dock) em Modo Design */}
+      {studioMode === 'design' && template && onAddField && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
+          <StudioFloatingDock
+            onAddField={onAddField}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onUndo={onUndo || (() => {})}
+            onRedo={onRedo || (() => {})}
+            selectedField={selectedField}
+            onDuplicateSelected={selectedField && onDuplicateField ? () => onDuplicateField(selectedField) : undefined}
+            onDeleteSelected={selectedField && onRemoveField ? () => onRemoveField(selectedField.key) : undefined}
+            onToggleLockSelected={selectedField && onToggleLockField ? () => onToggleLockField(selectedField.key) : undefined}
+          />
+        </div>
+      )}
+
       {/* Viewport de Rolagem e Centralização da Folha */}
       <div
         ref={scrollContainerRef}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            handleSelectField(null);
+            if (editingInlineKey) handleCommitInlineEdit();
+          }
+        }}
         className="flex-1 h-full overflow-auto p-8 flex items-center justify-center relative"
       >
         {template ? (
@@ -412,6 +603,12 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
                 paperRef.current = node;
                 if (printContainerRef && 'current' in printContainerRef) {
                   (printContainerRef as any).current = node;
+                }
+              }}
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  handleSelectField(null);
+                  if (editingInlineKey) handleCommitInlineEdit();
                 }
               }}
               style={{
@@ -437,26 +634,27 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
                 })}
               </div>
 
-              {/* Camada Interativa Direta para Manipulação das Caixas (Direct Manipulation 1:1) */}
+              {/* Camada Interativa Direta para Manipulação das Caixas */}
               {onUpdateTemplateFields && !template.grid && (
                 <div
                   className="absolute inset-0 z-10 pointer-events-auto"
                   onClick={(e) => {
                     if (e.target === e.currentTarget) {
-                      setSelectedFieldKey(null);
+                      handleSelectField(null);
+                      if (editingInlineKey) handleCommitInlineEdit();
                     }
                   }}
                 >
-                  {/* Guia visual sutil de Margem de Segurança (Safe Area de 2mm para cabeçotes térmicos) */}
+                  {/* Guia visual sutil de Margem de Segurança (2mm para cabeçotes térmicos) */}
                   <div
-                    className="absolute pointer-events-none border border-dashed border-[#3a86ff]/20 rounded-[1px]"
+                    className="absolute pointer-events-none border border-dashed border-black/[0.08] rounded-[1px] transition-opacity duration-snappy"
                     style={{
                       left: '2mm',
                       top: '2mm',
                       right: '2mm',
                       bottom: '2mm',
                     }}
-                    title="Margem técnica recomendada de 2mm"
+                    title="Margem técnica de segurança de 2mm"
                   />
 
                   {template.fields.map((field) => {
@@ -464,6 +662,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
                     const isDraggingThis = activeDraggingKey === field.key;
                     const isResizingThis = resizing !== null && isSelected;
                     const isHoveredThis = hoveredFieldKey === field.key && !activeDraggingKey && !resizing;
+                    const isEditingInline = editingInlineKey === field.key;
                     const fx = field.xMm ?? 0;
                     const fy = field.yMm ?? 0;
                     const fw = field.widthMm ?? 30;
@@ -474,7 +673,11 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
                         key={field.key}
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedFieldKey(field.key);
+                          handleSelectField(field.key);
+                        }}
+                        onDoubleClick={(e) => {
+                          e.stopPropagation();
+                          handleDoubleClickBox(field);
                         }}
                         onPointerDown={(e) => handlePointerDownBox(e, field)}
                         onPointerMove={handlePointerMoveBox}
@@ -492,7 +695,13 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
                           height: `${fh}mm`,
                           cursor: field.locked ? 'default' : isDraggingThis ? 'grabbing' : 'grab',
                         }}
-                        title={field.locked ? `Caixa bloqueada: "${field.label}"` : `Arrastar "${field.label}" (${fx.toFixed(1)}mm, ${fy.toFixed(1)}mm)`}
+                        title={
+                          field.locked
+                            ? `Caixa bloqueada: "${field.label}"`
+                            : studioMode === 'design'
+                            ? `Duplo clique para editar texto inline • Arrastar "${field.label}" (${fx.toFixed(1)}mm, ${fy.toFixed(1)}mm)`
+                            : `Elemento "${field.label}"`
+                        }
                         className={`touch-none select-none rounded-[3px] transition-colors duration-instant ${
                           isSelected
                             ? field.locked
@@ -504,11 +713,67 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
                             ? field.locked
                               ? 'ring-1 ring-[#ef4444]/40 bg-[#ef4444]/[0.02] z-20'
                               : 'ring-1 ring-[#3a86ff]/60 bg-[#3a86ff]/[0.03] z-20'
+                            : studioMode === 'design'
+                            ? 'border border-dashed border-black/15 hover:ring-1 hover:ring-black/20 z-10'
                             : 'hover:ring-1 hover:ring-black/10 z-10'
                         }`}
                       >
+                        {/* Editor de Texto Inline Overlay (ao dar duplo clique) */}
+                        {isEditingInline && (
+                          <div
+                            className="absolute inset-0 z-50 bg-white shadow-md rounded-[2px]"
+                            onClick={(e) => e.stopPropagation()}
+                            onPointerDown={(e) => e.stopPropagation()}
+                          >
+                            {field.type === 'textarea' ? (
+                              <textarea
+                                ref={inlineInputRef as any}
+                                value={inlineValue}
+                                onChange={(e) => setInlineValue(e.target.value)}
+                                onBlur={handleCommitInlineEdit}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                                    e.preventDefault();
+                                    handleCommitInlineEdit();
+                                  } else if (e.key === 'Escape') {
+                                    e.preventDefault();
+                                    setEditingInlineKey(null);
+                                  }
+                                }}
+                                style={{
+                                  fontSize: `${field.fontSizePt || 8.5}pt`,
+                                  textAlign: field.textAlign || 'left',
+                                }}
+                                className="w-full h-full p-1 resize-none bg-white border border-[#3a86ff] rounded-[2px] font-sans text-black focus:outline-none"
+                              />
+                            ) : (
+                              <input
+                                ref={inlineInputRef as any}
+                                type="text"
+                                value={inlineValue}
+                                onChange={(e) => setInlineValue(e.target.value)}
+                                onBlur={handleCommitInlineEdit}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleCommitInlineEdit();
+                                  } else if (e.key === 'Escape') {
+                                    e.preventDefault();
+                                    setEditingInlineKey(null);
+                                  }
+                                }}
+                                style={{
+                                  fontSize: `${field.fontSizePt || 8.5}pt`,
+                                  textAlign: field.textAlign || 'left',
+                                }}
+                                className="w-full h-full px-1 bg-white border border-[#3a86ff] rounded-[2px] font-sans text-black focus:outline-none"
+                              />
+                            )}
+                          </div>
+                        )}
+
                         {/* Badge de Dimensões e Posição (visível ao selecionar, arrastar ou redimensionar) */}
-                        {(isSelected || isDraggingThis || isResizingThis) && (
+                        {(isSelected || isDraggingThis || isResizingThis) && !isEditingInline && (
                           <div
                             className={`badge-tooltip-popover absolute left-1/2 -translate-x-1/2 bg-[#111111] text-white font-mono text-[9px] px-2 py-0.5 rounded-[5px] shadow-subtle flex items-center gap-1.5 whitespace-nowrap pointer-events-none z-50 ${
                               fy < 7 ? 'top-full mt-2.5 origin-top' : '-top-7 origin-bottom'
@@ -520,8 +785,8 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
                           </div>
                         )}
 
-                        {/* 8 Alças de Redimensionamento Interativas (Cantos + Bordas) - Omitidas se a caixa for bloqueada */}
-                        {isSelected && !field.locked && [
+                        {/* 8 Alças de Redimensionamento Interativas (Cantos + Bordas) */}
+                        {isSelected && !field.locked && !isEditingInline && [
                           { handle: 'nw' as const, className: 'top-0 left-0 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize' },
                           { handle: 'n' as const, className: 'top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 cursor-ns-resize' },
                           { handle: 'ne' as const, className: 'top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-nesw-resize' },
@@ -584,34 +849,34 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
                 Selecione um modelo na barra lateral à esquerda ou crie uma etiqueta personalizada para começar.
               </p>
             </div>
-              <div className="pt-2 flex flex-wrap items-center justify-center gap-2">
-                {onOpenHome && (
-                  <button
-                    type="button"
-                    onClick={onOpenHome}
-                    className="btn-tactile bg-[#111111] hover:bg-[#27272a] text-white text-xs font-semibold py-1.5 px-3.5 rounded-[7px] border border-[#111111] flex items-center gap-1.5 shadow-xs transition-colors"
-                  >
-                    <Home className="w-3.5 h-3.5" />
-                    <span>Ir para o Início</span>
-                  </button>
-                )}
+            <div className="pt-2 flex flex-wrap items-center justify-center gap-2">
+              {onOpenHome && (
+                <button
+                  type="button"
+                  onClick={onOpenHome}
+                  className="btn-tactile bg-[#111111] hover:bg-[#27272a] text-white text-xs font-semibold py-1.5 px-3.5 rounded-[7px] border border-[#111111] flex items-center gap-1.5 shadow-xs transition-colors"
+                >
+                  <Home className="w-3.5 h-3.5" />
+                  <span>Ir para o Início</span>
+                </button>
+              )}
 
-                {onCreateTemplate && (
-                  <button
-                    type="button"
-                    onClick={onCreateTemplate}
-                    className="btn-tactile bg-white hover:bg-black/[0.04] text-foreground-primary text-xs font-medium py-1.5 px-3.5 rounded-[7px] border border-border flex items-center gap-1.5 shadow-2xs transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5" strokeWidth={2.2} />
-                    <span>Criar Novo Modelo</span>
-                  </button>
-                )}
-              </div>
+              {onCreateTemplate && (
+                <button
+                  type="button"
+                  onClick={onCreateTemplate}
+                  className="btn-tactile bg-white hover:bg-black/[0.04] text-foreground-primary text-xs font-medium py-1.5 px-3.5 rounded-[7px] border border-border flex items-center gap-1.5 shadow-2xs transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" strokeWidth={2.2} />
+                  <span>Criar Novo Modelo</span>
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Pílula Flutuante de Zoom e Medidas no Rodapé (Visível apenas com documento ativo) */}
+      {/* Pílula Flutuante de Zoom e Medidas no Rodapé */}
       {template && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none animate-fadeIn">
           <nav

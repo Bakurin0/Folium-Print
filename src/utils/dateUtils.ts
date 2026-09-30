@@ -14,21 +14,6 @@ export const DATE_FORMAT_OPTIONS: DateFormatOption[] = [
   { value: 'extended', label: 'Extenso (pt-BR)', example: '30 de setembro de 2026' },
 ];
 
-const MONTHS_PT = [
-  'janeiro',
-  'fevereiro',
-  'março',
-  'abril',
-  'maio',
-  'junho',
-  'julho',
-  'agosto',
-  'setembro',
-  'outubro',
-  'novembro',
-  'dezembro',
-];
-
 /**
  * Formata um objeto Date ou string de data em um formato específico com prefixo opcional.
  */
@@ -43,7 +28,6 @@ export function formatDate(
   } else if (inputDate instanceof Date) {
     d = isNaN(inputDate.getTime()) ? new Date() : inputDate;
   } else {
-    // Se for string no formato YYYY-MM-DD
     const parts = String(inputDate).trim().split('-');
     if (parts.length === 3) {
       d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
@@ -73,8 +57,12 @@ export function formatDate(
       formattedDate = `${yearFull}-${month}-${day}`;
       break;
     case 'extended': {
-      const monthName = MONTHS_PT[d.getMonth()] || month;
-      formattedDate = `${d.getDate()} de ${monthName} de ${yearFull}`;
+      // ponytail: Native Intl API replaces manual pt-BR month array
+      formattedDate = new Intl.DateTimeFormat('pt-BR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }).format(d);
       break;
     }
     case 'DD/MM/YYYY':

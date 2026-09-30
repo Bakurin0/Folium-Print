@@ -160,11 +160,11 @@ export const SvgPropertiesControl: React.FC<SvgPropertiesControlProps> = ({
       )}
 
       {/* Preenchimento (Fill) */}
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         <label className="text-[10px] font-medium text-foreground-secondary block">
           Cor de Preenchimento (Fill)
         </label>
-        <div className="flex items-center gap-1 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap">
           {SVG_PRESET_COLORS.map((c) => {
             const isSelected = fill === c.value || (!fill && c.value === '#000000');
             return (
@@ -172,22 +172,25 @@ export const SvgPropertiesControl: React.FC<SvgPropertiesControlProps> = ({
                 key={c.value}
                 type="button"
                 onClick={() => onChangeFill(c.value)}
-                className={`btn-tactile text-[9.5px] px-1.5 py-0.5 rounded-[4px] border flex items-center gap-1 ${
+                className={`btn-tactile p-1 rounded-full border transition-all ${
                   isSelected
-                    ? 'border-[#3a86ff] ring-1 ring-[#3a86ff] font-semibold text-foreground-primary bg-white'
-                    : 'border-border/80 text-foreground-muted hover:text-foreground-primary hover:bg-white'
+                    ? 'border-[#3a86ff] ring-2 ring-[#3a86ff]/30 scale-110 shadow-xs'
+                    : 'border-black/15 hover:scale-105'
                 }`}
                 title={c.label}
+                aria-label={c.label}
               >
                 <span
-                  className="w-2.5 h-2.5 rounded-full border border-black/20 shrink-0"
+                  className="w-4 h-4 rounded-full block border border-black/10 shrink-0"
                   style={{
                     backgroundColor: c.value === 'none' ? 'transparent' : c.value,
-                    backgroundImage: c.value === 'none' ? 'linear-gradient(45deg, #ddd 25%, transparent 25%), linear-gradient(-45deg, #ddd 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ddd 75%), linear-gradient(-45deg, transparent 75%, #ddd 75%)' : undefined,
+                    backgroundImage:
+                      c.value === 'none'
+                        ? 'linear-gradient(45deg, #ddd 25%, transparent 25%), linear-gradient(-45deg, #ddd 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ddd 75%), linear-gradient(-45deg, transparent 75%, #ddd 75%)'
+                        : undefined,
                     backgroundSize: '4px 4px',
                   }}
                 />
-                <span>{c.label}</span>
               </button>
             );
           })}

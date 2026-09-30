@@ -17,6 +17,7 @@ export interface UseTemplateCatalogReturn {
   nextTemplate: () => void;
   saveTemplate: (def: CustomTemplateDefinition) => Template;
   updateCurrentTemplateFields: (fields: CustomTemplateDefinition['fields']) => void;
+  updateCurrentTemplate: (updates: Partial<CustomTemplateDefinition>) => void;
   deleteTemplate: (id: string) => void;
 }
 
@@ -132,6 +133,35 @@ export function useTemplateCatalog(
     [currentTemplate]
   );
 
+  const updateCurrentTemplate = useCallback(
+    (updates: Partial<CustomTemplateDefinition>) => {
+      if (!currentTemplate) return;
+      const def: CustomTemplateDefinition = {
+        id: currentTemplate.id,
+        name: updates.name ?? currentTemplate.name,
+        category: updates.category ?? currentTemplate.category,
+        description: updates.description ?? currentTemplate.description,
+        dimensions: updates.dimensions ?? currentTemplate.dimensions,
+        grid: updates.grid !== undefined ? updates.grid : currentTemplate.grid,
+        fields: updates.fields ?? currentTemplate.fields,
+        backgroundSvg: updates.backgroundSvg !== undefined ? updates.backgroundSvg : currentTemplate.backgroundSvg,
+        backgroundSvgFill: updates.backgroundSvgFill !== undefined ? updates.backgroundSvgFill : currentTemplate.backgroundSvgFill,
+        backgroundSvgStroke: updates.backgroundSvgStroke !== undefined ? updates.backgroundSvgStroke : currentTemplate.backgroundSvgStroke,
+        backgroundSvgStrokeWidth: updates.backgroundSvgStrokeWidth !== undefined ? updates.backgroundSvgStrokeWidth : currentTemplate.backgroundSvgStrokeWidth,
+        backgroundSvgRotation: updates.backgroundSvgRotation !== undefined ? updates.backgroundSvgRotation : currentTemplate.backgroundSvgRotation,
+        backgroundSvgFlipH: updates.backgroundSvgFlipH !== undefined ? updates.backgroundSvgFlipH : currentTemplate.backgroundSvgFlipH,
+        backgroundSvgFlipV: updates.backgroundSvgFlipV !== undefined ? updates.backgroundSvgFlipV : currentTemplate.backgroundSvgFlipV,
+        backgroundSvgOpacity: updates.backgroundSvgOpacity !== undefined ? updates.backgroundSvgOpacity : currentTemplate.backgroundSvgOpacity,
+        defaultFontWeight: updates.defaultFontWeight ?? currentTemplate.defaultFontWeight,
+        isCustom: true,
+      };
+      saveCustomTemplate(def);
+      const updated = loadCustomTemplates();
+      setCustomTemplates(updated);
+    },
+    [currentTemplate]
+  );
+
   const deleteTemplate = useCallback(
     (id: string) => {
       deleteCustomTemplate(id);
@@ -154,6 +184,7 @@ export function useTemplateCatalog(
     nextTemplate,
     saveTemplate,
     updateCurrentTemplateFields,
+    updateCurrentTemplate,
     deleteTemplate,
   };
 }

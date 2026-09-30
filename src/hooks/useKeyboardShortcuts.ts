@@ -10,6 +10,7 @@ interface UseKeyboardShortcutsOptions {
   onToggleFocusMode?: () => void;
   onCloseFile?: () => void;
   onToggleHome?: () => void;
+  onToggleStudioMode?: () => void;
   isModalOpen: boolean;
   onCloseModal: () => void;
 }
@@ -24,6 +25,7 @@ export const useKeyboardShortcuts = ({
   onToggleFocusMode,
   onCloseFile,
   onToggleHome,
+  onToggleStudioMode,
   isModalOpen,
   onCloseModal,
 }: UseKeyboardShortcutsOptions) => {
@@ -61,6 +63,13 @@ export const useKeyboardShortcuts = ({
       if ((e.ctrlKey || e.metaKey) && (e.shiftKey || e.altKey) && e.key.toLowerCase() === 'f' && onToggleFocusMode) {
         e.preventDefault();
         onToggleFocusMode();
+        return;
+      }
+
+      // Ctrl + E or Cmd + E -> Alternar Modo Impressão / Design
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'e' && onToggleStudioMode) {
+        e.preventDefault();
+        onToggleStudioMode();
         return;
       }
 
@@ -126,6 +135,7 @@ export const useKeyboardShortcuts = ({
     onToggleFocusMode,
     onCloseFile,
     onToggleHome,
+    onToggleStudioMode,
     isModalOpen, 
     onCloseModal
   ]);

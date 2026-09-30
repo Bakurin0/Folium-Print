@@ -12,7 +12,9 @@ import {
   Maximize2,
   Minimize2,
   X,
-  ArrowRight
+  ArrowRight,
+  Sparkles,
+  Check
 } from 'lucide-react';
 import appIcon from '../assets/app-icon.png';
 import { Template, ColorAdjustments, CropMarkSettings } from '../types/template';
@@ -36,6 +38,8 @@ interface UnifiedToolbarProps {
   productionCount?: number;
   isHomeOpen?: boolean;
   onToggleHome?: () => void;
+  studioMode?: 'print' | 'design';
+  onToggleStudioMode?: (mode: 'print' | 'design') => void;
 }
 
 /**
@@ -60,6 +64,8 @@ export const UnifiedToolbar: React.FC<UnifiedToolbarProps> = ({
   productionCount,
   isHomeOpen = false,
   onToggleHome,
+  studioMode = 'print',
+  onToggleStudioMode,
 }) => {
   return (
     <header 
@@ -136,11 +142,11 @@ export const UnifiedToolbar: React.FC<UnifiedToolbarProps> = ({
       </div>
 
       {/* 2. Centro: Document Title Pill com Centralização Óptica Absoluta (Apenas no Editor) */}
-      <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center max-w-[50%] truncate pointer-events-none z-10">
+      <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center max-w-[30%] lg:max-w-[36%] truncate pointer-events-none z-10">
         {!isHomeOpen && (
           currentTemplate ? (
-            <div className="pointer-events-auto flex items-center gap-2 px-2.5 py-1 rounded-[8px] bg-black/[0.035] border border-black/[0.06] hover:bg-black/[0.05] transition-colors shadow-2xs truncate">
-              <span className="text-xs font-semibold text-foreground-primary truncate">
+            <div className="pointer-events-auto flex items-center gap-1.5 px-2 py-1 rounded-[7px] bg-black/[0.035] border border-black/[0.06] hover:bg-black/[0.05] transition-colors shadow-2xs truncate">
+              <span className="text-xs font-semibold text-foreground-primary truncate max-w-[120px] sm:max-w-[180px]">
                 {currentTemplate.name}
               </span>
 
@@ -244,10 +250,10 @@ export const UnifiedToolbar: React.FC<UnifiedToolbarProps> = ({
           </>
         ) : (
           <>
-            {/* Indicador de Produção / Cópias (Apenas quando houver documento ativo) */}
-            {currentTemplate && productionCount !== undefined && productionCount > 0 && (
+            {/* Indicador de Produção / Cópias (Apenas quando em Modo Impressão e com documento ativo) */}
+            {studioMode === 'print' && currentTemplate && productionCount !== undefined && productionCount > 0 && (
               <div 
-                className="hidden xl:flex items-center gap-1.5 px-2 py-0.5 text-foreground-muted font-mono text-[10px]"
+                className="hidden 2xl:flex items-center gap-1.5 px-2 py-0.5 text-foreground-muted font-mono text-[10px]"
                 title="Total de etiquetas prontas para envio ao spooler"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
@@ -314,23 +320,67 @@ export const UnifiedToolbar: React.FC<UnifiedToolbarProps> = ({
 
             <div className="h-4 w-[1px] bg-border mx-0.5" aria-hidden="true" />
 
-            {/* Botão Primário Proeminente de Impressão */}
-            <button
-              type="button"
-              onClick={onPrint}
-              disabled={!currentTemplate || isPrinting}
-              className="btn-tactile font-medium py-1.5 px-3 rounded-[6px] flex items-center gap-2 text-xs transition-colors group disabled:pointer-events-none disabled:bg-black/[0.04] disabled:text-foreground-muted disabled:border-black/[0.06] disabled:shadow-none bg-[#111111] hover:bg-[#27272a] text-white border border-[#111111] shadow-xs"
-              title={`Imprimir documento (${formatShortcut('P')})`}
-              aria-label="Imprimir documento"
-            >
-              <Printer className={`w-3.5 h-3.5 transition-colors ${isPrinting ? 'animate-pulse' : ''} group-disabled:text-foreground-muted text-white`} strokeWidth={1.8} aria-hidden="true" />
-              <span className="font-medium">
-                {isPrinting ? 'Enviando...' : 'Imprimir'}
-              </span>
-              <kbd className="hidden sm:inline font-mono text-[9px] px-1.5 py-0.5 rounded-[3px] font-semibold border transition-colors group-disabled:bg-black/[0.04] group-disabled:text-foreground-muted group-disabled:border-black/[0.06] bg-white/15 text-white/90 border-white/10" aria-hidden="true">
-                {formatShortcut('P')}
-              </kbd>
-            </button>
+            {/* Alternador de Modo: Impressão vs Design */}
+            {currentTemplate && onToggleStudioMode && (
+              <div className="flex items-center p-0.5 rounded-[7px] bg-black/[0.05] border border-black/[0.06] select-none">
+                <button
+                  type="button"
+                  onClick={() => onToggleStudioMode('print')}
+                  className={`btn-tactile px-2 py-1 rounded-[5px] text-[11px] font-semibold flex items-center gap-1.5 transition-all ${
+                    studioMode === 'print'
+                      ? 'bg-white text-foreground-primary shadow-2xs'
+                      : 'text-foreground-secondary hover:text-foreground-primary'
+                  }`}
+                  title="Modo Impressão: Preenchimento de dados e envio à impressora"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Impressão</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onToggleStudioMode('design')}
+                  className={`btn-tactile px-2 py-1 rounded-[5px] text-[11px] font-semibold flex items-center gap-1.5 transition-all ${
+                    studioMode === 'design'
+                      ? 'bg-white text-[#3a86ff] shadow-2xs'
+                      : 'text-foreground-secondary hover:text-foreground-primary'
+                  }`}
+                  title="Modo Design: Edição de layout, campos e geometria"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-[#3a86ff]" />
+                  <span>Design</span>
+                </button>
+              </div>
+            )}
+
+            {/* Botão Primário Dinâmico: Concluir (em Design) ou Imprimir (em Impressão) */}
+            {studioMode === 'design' ? (
+              <button
+                type="button"
+                onClick={() => onToggleStudioMode?.('print')}
+                className="btn-tactile font-medium py-1.5 px-3 rounded-[6px] flex items-center gap-1.5 text-xs transition-colors bg-[#3a86ff] hover:bg-[#2563eb] text-white border border-[#3a86ff] shadow-xs"
+                title="Concluir edição de layout e retornar para o modo de impressão"
+              >
+                <Check className="w-3.5 h-3.5 text-white" strokeWidth={2.2} />
+                <span>Concluir</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onPrint}
+                disabled={!currentTemplate || isPrinting}
+                className="btn-tactile font-medium py-1.5 px-3 rounded-[6px] flex items-center gap-2 text-xs transition-colors group disabled:pointer-events-none disabled:bg-black/[0.04] disabled:text-foreground-muted disabled:border-black/[0.06] disabled:shadow-none bg-[#111111] hover:bg-[#27272a] text-white border border-[#111111] shadow-xs"
+                title={`Imprimir documento (${formatShortcut('P')})`}
+                aria-label="Imprimir documento"
+              >
+                <Printer className={`w-3.5 h-3.5 transition-colors ${isPrinting ? 'animate-pulse' : ''} group-disabled:text-foreground-muted text-white`} strokeWidth={1.8} aria-hidden="true" />
+                <span className="font-medium">
+                  {isPrinting ? 'Enviando...' : 'Imprimir'}
+                </span>
+                <kbd className="hidden sm:inline font-mono text-[9px] px-1.5 py-0.5 rounded-[3px] font-semibold border transition-colors group-disabled:bg-black/[0.04] group-disabled:text-foreground-muted group-disabled:border-black/[0.06] bg-white/15 text-white/90 border-white/10" aria-hidden="true">
+                  {formatShortcut('P')}
+                </kbd>
+              </button>
+            )}
           </>
         )}
       </div>
