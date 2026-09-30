@@ -122,6 +122,17 @@ export const UnifiedToolbar: React.FC<UnifiedToolbarProps> = ({
             )}
           </>
         )}
+
+        {/* Indicador Visual Discreto de Ambiente Preview (Pré-produção) */}
+        {import.meta.env.VITE_VERCEL_ENV === 'preview' && (
+          <span
+            className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-mono font-medium tracking-wide uppercase bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 rounded-full select-none"
+            title={`Ambiente de Pré-produção (Vercel Preview${import.meta.env.VITE_VERCEL_GIT_COMMIT_REF ? ` — branch: ${import.meta.env.VITE_VERCEL_GIT_COMMIT_REF}` : ''})`}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+            Preview
+          </span>
+        )}
       </div>
 
       {/* 2. Centro: Document Title Pill com Centralização Óptica Absoluta (Apenas no Editor) */}

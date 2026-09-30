@@ -1,0 +1,12 @@
+# Rust / Tauri desktop bundle
+src-tauri/
+
+# Relatórios pesados de auditoria e scripts auxiliares
+docs/security-audit/*.pdf
+docs/security-audit/generate_audit_report.py
+
+# Git, workflows e metadados locais
+.git
+.github
+*.log
+scratch/
