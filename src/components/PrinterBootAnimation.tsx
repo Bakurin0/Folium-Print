@@ -5,6 +5,7 @@ import { Template, TemplateFormData } from '../types/template';
 interface PrinterBootAnimationProps {
   activeTemplate: Template | null;
   formData: TemplateFormData;
+  printerName?: string;
   onRevealStudio?: () => void;
   onComplete: () => void;
 }
@@ -23,6 +24,7 @@ interface PrinterBootAnimationProps {
 export const PrinterBootAnimation: React.FC<PrinterBootAnimationProps> = ({
   activeTemplate,
   formData,
+  printerName,
   onRevealStudio,
   onComplete,
 }) => {
@@ -242,11 +244,14 @@ export const PrinterBootAnimation: React.FC<PrinterBootAnimationProps> = ({
         >
           {/* Painel Frontal do Chassi: LED, Nome da Impressora e Logo */}
           <div className="w-full flex items-center justify-between pb-3 text-white">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono tracking-widest font-semibold text-white/90 uppercase">
-                FOLIUM THERMAL T-800
+            <div className="flex items-center gap-2 min-w-0 pr-2">
+              <span
+                className="text-[10px] font-mono tracking-widest font-semibold text-white/95 uppercase truncate max-w-[200px] sm:max-w-[320px]"
+                title={printerName?.trim() || activeTemplate?.name || 'FOLIUM THERMAL'}
+              >
+                {(printerName?.trim() || activeTemplate?.name || 'FOLIUM THERMAL').toUpperCase()}
               </span>
-              <span className="text-[8px] font-mono px-1 py-0.2 rounded bg-white/10 text-white/60">
+              <span className="text-[8px] font-mono px-1 py-0.2 rounded bg-white/10 text-white/60 shrink-0">
                 203 DPI
               </span>
             </div>

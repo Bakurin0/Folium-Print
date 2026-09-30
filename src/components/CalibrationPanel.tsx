@@ -1,19 +1,31 @@
 import React, { useState } from 'react';
 import { CalibrationOffset } from '../types/template';
-import { Sliders, ChevronDown, RotateCcw, HelpCircle } from 'lucide-react';
+import { Sliders, ChevronDown, RotateCcw, HelpCircle, Printer, X } from 'lucide-react';
+
+export const COMMON_PRINTER_MODELS = [
+  'Zebra ZD220',
+  'Elgin L42 Pro',
+  'Argox OS-214 Plus',
+  'Bematech MP-4200',
+  'Epson TM-T20',
+];
 
 interface CalibrationPanelProps {
   offset: CalibrationOffset;
   onChangeOffset: (newOffset: CalibrationOffset) => void;
   templateName: string;
+  printerName?: string;
+  onChangePrinterName?: (name: string) => void;
 }
 
 export const CalibrationPanel: React.FC<CalibrationPanelProps> = ({
   offset,
   onChangeOffset,
   templateName,
+  printerName = '',
+  onChangePrinterName,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
 
   const handleReset = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -125,6 +137,65 @@ export const CalibrationPanel: React.FC<CalibrationPanelProps> = ({
                   <span>+15 mm</span>
                 </div>
               </div>
+            </div>
+
+            {/* Configuração do Nome da Impressora do Usuário */}
+            <div className="pt-3 border-t border-border/70 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-semibold text-foreground-primary flex items-center gap-1.5">
+                  <Printer className="w-3.5 h-3.5 text-[#3a86ff]" />
+                  <span>Dispositivo & Impressora</span>
+                </label>
+                {printerName && (
+                  <button
+                    type="button"
+                    onClick={() => onChangePrinterName?.('')}
+                    className="btn-tactile text-[10px] text-foreground-muted hover:text-foreground-primary flex items-center gap-0.5"
+                    title="Restaurar nome padrão"
+                  >
+                    <X className="w-3 h-3" />
+                    <span>Limpar</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="relative">
+                <input
+                  type="text"
+                  value={printerName}
+                  onChange={(e) => onChangePrinterName?.(e.target.value)}
+                  placeholder="ex: Zebra ZD220, Elgin L42 Pro..."
+                  className="w-full text-xs font-medium px-2.5 py-1.5 bg-white border border-border/80 focus:border-[#3a86ff] focus:ring-2 focus:ring-[#3a86ff]/15 rounded-[6px] text-foreground-primary placeholder:text-foreground-muted outline-none transition-colors"
+                />
+              </div>
+
+              {/* Chips rápidos de modelos industriais e comerciais populares */}
+              <div className="space-y-1">
+                <span className="text-[10px] text-foreground-muted block">Sugestões de marcas:</span>
+                <div className="flex items-center gap-1 flex-wrap">
+                  {COMMON_PRINTER_MODELS.map((model) => {
+                    const isSelected = printerName.toLowerCase() === model.toLowerCase();
+                    return (
+                      <button
+                        key={model}
+                        type="button"
+                        onClick={() => onChangePrinterName?.(model)}
+                        className={`btn-tactile text-[10px] px-2 py-0.5 rounded-[4px] border font-medium transition-all active:scale-[0.97] ${
+                          isSelected
+                            ? 'bg-[#3a86ff]/10 text-[#3a86ff] border-[#3a86ff]/30 font-semibold shadow-xs'
+                            : 'bg-white hover:bg-surface-subtle text-foreground-secondary border-border/80'
+                        }`}
+                      >
+                        {model}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <p className="text-[10px] text-foreground-muted leading-tight">
+                Este nome é gravado no chassi frontal durante a animação industrial de impressão.
+              </p>
             </div>
           </div>
         </div>

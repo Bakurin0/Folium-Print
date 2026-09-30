@@ -87,6 +87,26 @@ export const App: React.FC = () => {
   const [isPrinterBooting, setIsPrinterBooting] = useState<boolean>(false);
   const [bootingTemplate, setBootingTemplate] = useState<Template | null>(null);
 
+  // Nome da impressora do usuário com persistência local
+  const [printerName, setPrinterName] = useState<string>(() => {
+    try {
+      return localStorage.getItem('folium_printer_name') || '';
+    } catch {
+      return '';
+    }
+  });
+
+  const handleUpdatePrinterName = (name: string) => {
+    setPrinterName(name);
+    try {
+      if (name.trim()) {
+        localStorage.setItem('folium_printer_name', name.trim());
+      } else {
+        localStorage.removeItem('folium_printer_name');
+      }
+    } catch {}
+  };
+
   // 6.5 Estado da Tela de Início / Home Dashboard com persistência de sessão
   const [isHomeOpen, setIsHomeOpen] = useState<boolean>(() => {
     try {
@@ -315,6 +335,7 @@ export const App: React.FC = () => {
         <PrinterBootAnimation
           activeTemplate={bootingTemplate || currentTemplate}
           formData={formData}
+          printerName={printerName}
           onRevealStudio={() => {
             setIsHomeOpen(false);
           }}
@@ -436,6 +457,8 @@ export const App: React.FC = () => {
           onChangePaperSelection={setPaperSelection}
           onResetForm={handleResetForm}
           onExportPdf={handlePrint}
+          printerName={printerName}
+          onChangePrinterName={handleUpdatePrinterName}
         />
       </main>
       )}

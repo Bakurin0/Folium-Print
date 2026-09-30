@@ -45,6 +45,8 @@ interface InspectorPanelProps {
   onChangePaperSelection: (selection: PaperSelection) => void;
   onResetForm: () => void;
   onExportPdf: () => void;
+  printerName?: string;
+  onChangePrinterName?: (name: string) => void;
 }
 
 /**
@@ -71,6 +73,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   onChangePaperSelection,
   onResetForm,
   onExportPdf,
+  printerName,
+  onChangePrinterName,
 }) => {
   const [internalTab, setInternalTab] = useState<InspectorTab>('data');
   const activeTab = controlledTab ?? internalTab;
@@ -239,6 +243,8 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                   offset={offset}
                   onChangeOffset={onChangeOffset}
                   templateName={currentTemplate.name}
+                  printerName={printerName}
+                  onChangePrinterName={onChangePrinterName}
                 />
               </div>
             )}
