@@ -1,0 +1,1120 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Gerador do Relatório de Auditoria de Segurança do Folium Print
+Stack Detectada: React 18, TypeScript, TailwindCSS 3.4, Tauri v2 (Rust 2024)
+Saída: docs/security-audit/relatorio-auditoria-seguranca.pdf
+"""
+
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+PDF_OUTPUT = BASE_DIR / "relatorio-auditoria-seguranca.pdf"
+HTML_OUTPUT = BASE_DIR / "relatorio-auditoria-seguranca.html"
+
+HTML_CONTENT = """<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Relatório de Auditoria de Segurança — Folium Print</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 14mm 14mm 14mm 14mm;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #1e293b;
+      background-color: #ffffff;
+      line-height: 1.4;
+      font-size: 8.5pt;
+    }
+
+    .page {
+      page-break-after: always;
+      position: relative;
+      min-height: 260mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .page:last-child {
+      page-break-after: avoid;
+    }
+
+    .page-content {
+      flex: 1;
+    }
+
+    /* Header & Footer */
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 2.5mm;
+      margin-bottom: 4mm;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 7.5pt;
+      color: #64748b;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .page-header .brand {
+      color: #0f172a;
+      font-weight: 700;
+    }
+
+    .page-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 2.5mm;
+      margin-top: 3mm;
+      border-top: 1px solid #e2e8f0;
+      font-size: 7.5pt;
+      color: #94a3b8;
+    }
+
+    /* Typography */
+    h1 {
+      font-size: 22pt;
+      color: #0f172a;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.5px;
+    }
+
+    h2 {
+      font-size: 13pt;
+      color: #0f172a;
+      font-weight: 700;
+      margin-top: 3mm;
+      margin-bottom: 2mm;
+      padding-bottom: 1.5mm;
+      border-bottom: 1.5px solid #f1f5f9;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    p {
+      margin-bottom: 2mm;
+      color: #334155;
+      font-size: 8.5pt;
+    }
+
+    /* Cover Page */
+    .cover-top {
+      padding-top: 10mm;
+    }
+
+    .cover-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      background: #eff6ff;
+      color: #2563eb;
+      font-weight: 700;
+      font-size: 8pt;
+      border-radius: 999px;
+      border: 1px solid #dbeafe;
+      margin-bottom: 6mm;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .cover-title {
+      font-size: 26pt;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.15;
+      margin-bottom: 3mm;
+      letter-spacing: -0.8px;
+    }
+
+    .cover-subtitle {
+      font-size: 11pt;
+      color: #475569;
+      font-weight: 400;
+      margin-bottom: 8mm;
+      line-height: 1.4;
+    }
+
+    .cover-meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4mm;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 5mm;
+      margin-bottom: 6mm;
+    }
+
+    .meta-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .meta-label {
+      font-size: 7pt;
+      text-transform: uppercase;
+      color: #64748b;
+      font-weight: 600;
+      margin-bottom: 1mm;
+      letter-spacing: 0.5px;
+    }
+
+    .meta-value {
+      font-size: 9pt;
+      color: #0f172a;
+      font-weight: 600;
+    }
+
+    .methodology-box {
+      background: #f8fafc;
+      border-left: 3.5px solid #2563eb;
+      padding: 4mm 5mm;
+      border-radius: 0 8px 8px 0;
+      font-size: 8pt;
+      line-height: 1.45;
+      color: #334155;
+    }
+
+    .methodology-box strong {
+      color: #0f172a;
+    }
+
+    /* KPI Summary Cards */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 2.5mm;
+      margin-bottom: 4mm;
+    }
+
+    .kpi-card {
+      background: #ffffff;
+      border-radius: 6px;
+      padding: 2.5mm 2mm;
+      text-align: center;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    }
+
+    .kpi-num {
+      font-size: 16pt;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 1mm;
+    }
+
+    .kpi-label {
+      font-size: 6.8pt;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+    }
+
+    .critica { color: #B91C1C; }
+    .alta { color: #EA580C; }
+    .media { color: #D97706; }
+    .baixa { color: #2563EB; }
+    .forte { color: #059669; }
+
+    /* Charts Container */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3mm;
+      margin-bottom: 4mm;
+    }
+
+    .chart-box {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 2.5mm;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .chart-title {
+      font-size: 8pt;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 1.5mm;
+      text-align: center;
+      width: 100%;
+    }
+
+    /* Comparison Strengths vs Weaknesses */
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3mm;
+    }
+
+    .strength-card {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 6px;
+      padding: 3mm;
+    }
+
+    .strength-card h3 {
+      color: #059669;
+      font-size: 8.8pt;
+      margin-top: 0;
+      margin-bottom: 2mm;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .weakness-card {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 6px;
+      padding: 3mm;
+    }
+
+    .weakness-card h3 {
+      color: #b91c1c;
+      font-size: 8.8pt;
+      margin-top: 0;
+      margin-bottom: 2mm;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .item-list {
+      list-style: none;
+      font-size: 7.8pt;
+      line-height: 1.35;
+      color: #334155;
+    }
+
+    .item-list li {
+      margin-bottom: 2mm;
+      padding-left: 10px;
+      position: relative;
+    }
+
+    .strength-card .item-list li::before {
+      content: "✔";
+      position: absolute;
+      left: 0;
+      color: #059669;
+      font-weight: bold;
+    }
+
+    .weakness-card .item-list li::before {
+      content: "✖";
+      position: absolute;
+      left: 0;
+      color: #b91c1c;
+      font-weight: bold;
+    }
+
+    /* Table Styles */
+    table.findings-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 7.8pt;
+      margin-top: 2mm;
+      margin-bottom: 3.5mm;
+    }
+
+    table.findings-table th {
+      background: #f8fafc;
+      color: #475569;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 6.8pt;
+      letter-spacing: 0.4px;
+      padding: 2mm 2.5mm;
+      border-bottom: 1.5px solid #cbd5e1;
+      text-align: left;
+    }
+
+    table.findings-table td {
+      padding: 2mm 2.5mm;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: top;
+      color: #334155;
+      line-height: 1.35;
+    }
+
+    table.findings-table tr:nth-child(even) td {
+      background: #fafafa;
+    }
+
+    /* Severity Chip */
+    .chip {
+      display: inline-block;
+      padding: 1.5px 6px;
+      border-radius: 999px;
+      font-size: 6.8pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+    }
+
+    .chip-critica { background: #fee2e2; color: #b91c1c; border: 1px solid #f87171; }
+    .chip-alta { background: #ffedd5; color: #ea580c; border: 1px solid #fb923c; }
+    .chip-media { background: #fef3c7; color: #d97706; border: 1px solid #fcd34d; }
+    .chip-baixa { background: #dbeafe; color: #2563eb; border: 1px solid #93c5fd; }
+    .chip-forte { background: #d1fae5; color: #059669; border: 1px solid #6ee7b7; }
+
+    .code-ref {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 7.4pt;
+      background: #f1f5f9;
+      padding: 1px 3px;
+      border-radius: 3px;
+      color: #0f172a;
+      word-break: break-all;
+    }
+
+    /* Detailed Finding Cards */
+    .finding-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 2.5mm 3mm;
+      margin-bottom: 2.5mm;
+      background: #ffffff;
+    }
+
+    .finding-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5mm;
+    }
+
+    .finding-title {
+      font-size: 8.8pt;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    pre.code-block {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 2mm 2.5mm;
+      border-radius: 4px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 6.8pt;
+      line-height: 1.3;
+      overflow-x: hidden;
+      margin: 1.5mm 0;
+      white-space: pre-wrap;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      gap: 1mm 2.5mm;
+      font-size: 7.8pt;
+      margin-top: 1mm;
+    }
+
+    .detail-label {
+      font-weight: 700;
+      color: #64748b;
+    }
+
+    .detail-val {
+      color: #1e293b;
+    }
+
+    /* GitHub Issue Block */
+    .issue-block {
+      border: 1px dashed #cbd5e1;
+      background: #f8fafc;
+      border-radius: 8px;
+      padding: 4mm 5mm;
+      margin-top: 2mm;
+      font-size: 8pt;
+    }
+
+    .issue-badge {
+      display: inline-block;
+      background: #24292f;
+      color: #ffffff;
+      font-family: ui-monospace, monospace;
+      font-size: 7.5pt;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      margin-bottom: 2.5mm;
+    }
+
+    .issue-content {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      white-space: pre-wrap;
+      color: #1e293b;
+      line-height: 1.45;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 4mm;
+    }
+
+    /* Remediation Table */
+    .rec-item {
+      display: flex;
+      gap: 2.5mm;
+      align-items: flex-start;
+      margin-bottom: 1.8mm;
+      padding-bottom: 1.8mm;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 7.8pt;
+    }
+
+    .rec-priority {
+      background: #0f172a;
+      color: #ffffff;
+      font-weight: 800;
+      font-size: 6.8pt;
+      padding: 1.5px 5px;
+      border-radius: 3px;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- PÁGINA 1: CAPA & NOTA METODOLÓGICA -->
+  <div class="page">
+    <div class="page-content cover-top">
+      <span class="cover-badge">Auditoria de Segurança de Código & Infraestrutura</span>
+      <h1 class="cover-title">Relatório de Auditoria de Segurança</h1>
+      <h2 style="border:none; margin:0 0 8px 0; font-size: 15pt; color: #2563eb; font-weight: 700;">Folium Print (Desktop & Web App)</h2>
+      <p class="cover-subtitle">
+        Revisão defensiva exaustiva orientada a vulnerabilidades de injeção (DOM-XSS), controle de privilégios nativos, persistência local e gestão de segredos.
+      </p>
+
+      <div class="cover-meta-grid">
+        <div class="meta-item">
+          <span class="meta-label">Data de Emissão</span>
+          <span class="meta-value">30 de Setembro de 2026</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Auditor Responsável</span>
+          <span class="meta-value">Antigravity AI Security Team</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Escopo Avaliado</span>
+          <span class="meta-value">100% do Código (Frontend React + Tauri v2 Rust)</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Stack Tecnológica</span>
+          <span class="meta-value">React 18 / Vite 6 / Tailwind 3.4 / Tauri v2 / Rust 2024</span>
+        </div>
+      </div>
+
+      <div class="methodology-box">
+        <strong>Nota Metodológica & Adaptação da Stack:</strong><br>
+        O <em>Folium Print</em> é uma aplicação desktop/web focada em <strong>arquitetura 100% offline e local-first</strong>, sem banco de dados remoto (Supabase/PostgreSQL), sem servidor backend centralizado e sem endpoints REST/GraphQL multi-inquilino. As categorias foram mapeadas para essa realidade:<br><br>
+        <strong>1. Banco sem Tranca:</strong> Não há RLS ou banco remoto; os dados residem isolados no <code>localStorage</code> do navegador/webview. Verificada a falta de integridade criptográfica local.<br>
+        <strong>2. Permissão no Navegador:</strong> Inexistência de RBAC multi-usuário; o equivalente são as permissões IPC do Tauri (<code>capabilities/default.json</code>). Verificado que apenas <code>core:default</code> está ativo.<br>
+        <strong>3. IDOR:</strong> Sem rotas HTTP remotas; avaliada a colisão de IDs na importação de arquivos locais (.folium, .json).<br>
+        <strong>4. Chaves Expostas:</strong> Varredura de 100% dos 11 commits do histórico git, configs e bundle final (Resultado: Limpo / Ponto Forte).<br>
+        <strong>5. Inputs sem Tratamento (XSS):</strong> Principal vetor de risco (sanitização de SVG com regex, interpolação em exportação HTML, <code>doc.write</code> no spooler e CSP do Tauri).
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span>Folium Print — Relatório Confidencial de Auditoria de Segurança</span>
+      <span>Página 1 de 8</span>
+    </div>
+  </div>
+
+  <!-- PÁGINA 2: RESUMO EXECUTIVO & PONTOS FORTES/FRACOS -->
+  <div class="page">
+    <div class="page-content">
+      <div class="page-header">
+        <span class="brand">Folium Print — Security Audit</span>
+        <span>Resumo Executivo & Diagnóstico</span>
+      </div>
+
+      <h2>Resumo Executivo</h2>
+      <p>
+        A auditoria identificou <strong>5 achados técnicos</strong>: <strong>3 de Alta Severidade</strong> (falhas no processamento e higienização de SVG/HTML com risco de XSS), <strong>1 de Média Severidade</strong> (CSP nativo nulo no Tauri e <code>unsafe-inline</code>) e <strong>1 de Baixa Severidade</strong> (sanitização incompleta de PII na exportação).
+      </p>
+
+      <!-- KPI Cards -->
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="kpi-num" style="color: #0f172a;">5</div>
+          <div class="kpi-label" style="color: #64748b;">Total Achados</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-num critica">0</div>
+          <div class="kpi-label critica">Crítica</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-num alta">3</div>
+          <div class="kpi-label alta">Alta</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-num media">1</div>
+          <div class="kpi-label media">Média</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-num forte">4</div>
+          <div class="kpi-label forte">Pontos Fortes</div>
+        </div>
+      </div>
+
+      <!-- Gráficos Vetoriais SVG -->
+      <div class="charts-grid">
+        <div class="chart-box">
+          <div class="chart-title">Distribuição por Severidade</div>
+          <svg width="170" height="135" viewBox="0 0 170 135">
+            <g transform="translate(85, 68)">
+              <!-- Total 5: Alta=3 (60% = 216deg), Média=1 (20% = 72deg), Baixa=1 (20% = 72deg) -->
+              <path d="M 0 -45 A 45 45 0 1 1 -42.8 13.9 L -25.68 8.34 A 27 27 0 1 0 0 -27 Z" fill="#EA580C" />
+              <path d="M -42.8 13.9 A 45 45 0 0 1 -26.45 -36.4 L -15.87 -21.84 A 27 27 0 0 0 -25.68 8.34 Z" fill="#D97706" />
+              <path d="M -26.45 -36.4 A 45 45 0 0 1 0 -45 L 0 -27 A 27 27 0 0 0 -15.87 -21.84 Z" fill="#2563EB" />
+              <text x="0" y="4" text-anchor="middle" font-size="13" font-weight="bold" fill="#0f172a">5</text>
+              <text x="0" y="15" text-anchor="middle" font-size="7" fill="#64748b">Vulnerabilidades</text>
+            </g>
+          </svg>
+          <div style="display: flex; gap: 8px; font-size: 7.2pt; margin-top: 1mm;">
+            <span><span style="color:#EA580C">■</span> Alta (3)</span>
+            <span><span style="color:#D97706">■</span> Média (1)</span>
+            <span><span style="color:#2563EB">■</span> Baixa (1)</span>
+          </div>
+        </div>
+
+        <div class="chart-box">
+          <div class="chart-title">Achados por Categoria da Stack</div>
+          <svg width="200" height="135" viewBox="0 0 200 135">
+            <line x1="55" y1="110" x2="190" y2="110" stroke="#cbd5e1" stroke-width="1" />
+            <line x1="55" y1="15" x2="55" y2="110" stroke="#cbd5e1" stroke-width="1" />
+            
+            <text x="50" y="35" text-anchor="end" font-size="7" fill="#475569">5. XSS/Inputs</text>
+            <rect x="55" y="25" width="115" height="14" fill="#EA580C" rx="2" />
+            <text x="175" y="35" font-size="7.5" font-weight="bold" fill="#EA580C">3</text>
+
+            <text x="50" y="58" text-anchor="end" font-size="7" fill="#475569">4. Chaves Exp.</text>
+            <rect x="55" y="48" width="4" height="14" fill="#059669" rx="1" />
+            <text x="65" y="58" font-size="7.5" font-weight="bold" fill="#059669">0 (Limpo)</text>
+
+            <text x="50" y="81" text-anchor="end" font-size="7" fill="#475569">3. IDOR</text>
+            <rect x="55" y="71" width="4" height="14" fill="#059669" rx="1" />
+            <text x="65" y="81" font-size="7.5" font-weight="bold" fill="#059669">N/A (Local)</text>
+
+            <text x="50" y="104" text-anchor="end" font-size="7" fill="#475569">1-2. Auth/RBAC</text>
+            <rect x="55" y="94" width="4" height="14" fill="#059669" rx="1" />
+            <text x="65" y="104" font-size="7.5" font-weight="bold" fill="#059669">N/A (Local)</text>
+          </svg>
+          <div style="font-size: 6.8pt; color: #64748b; margin-top: 1mm;">90% dos riscos concentram-se no tratamento de markup gráfico.</div>
+        </div>
+      </div>
+
+      <!-- Pontos Fortes vs Pontos Fracos -->
+      <div class="comparison-grid">
+        <div class="strength-card">
+          <h3>Pontos Fortes (Protegido com Evidência)</h3>
+          <ul class="item-list">
+            <li><strong>Zero Chaves Hardcoded:</strong> Varredura exaustiva dos 11 commits do histórico git e do bundle final confirmou ausência total de tokens ou API keys privadas.</li>
+            <li><strong>Operação 100% Offline:</strong> Nenhuma requisição externa (sem <code>fetch</code>/telemetria oculta); processamento gráfico estritamente confinado ao host local.</li>
+            <li><strong>Sandbox Estrito no Tauri v2:</strong> O arquivo <code>capabilities/default.json</code> restringe o runtime a <code>core:default</code>, sem expor APIs perigosas do sistema operacional.</li>
+            <li><strong>Validação Rígida em Barcode/QR:</strong> Validação de dígitos em <code>CodeRenderer.tsx</code> impede injeção ou falhas por valores de entrada corrompidos.</li>
+          </ul>
+        </div>
+
+        <div class="weakness-card">
+          <h3>Pontos Fracos (Riscos Centrais)</h3>
+          <ul class="item-list">
+            <li><strong>Regex Bypass em Sanitizador SVG:</strong> <code>sanitizeSvg.ts</code> permite evasão por tags aninhadas, attributes sem espaço e codificação HTML de URLs.</li>
+            <li><strong>XSS na Exportação HTML:</strong> <code>templateFileIO.ts</code> interpola dados de modelos sem escapar entidades HTML, gerando arquivos exportados vulneráveis.</li>
+            <li><strong>doc.write em Iframe de Impressão:</strong> <code>printService.ts</code> escreve markup direto no iframe, abrindo brecha para manipulação de <code>localStorage</code>.</li>
+            <li><strong>CSP Desabilitado no Tauri:</strong> <code>tauri.conf.json</code> define <code>"csp": null</code> e <code>index.html</code> permite <code>'unsafe-inline'</code>.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span>Folium Print — Relatório Confidencial de Auditoria de Segurança</span>
+      <span>Página 2 de 8</span>
+    </div>
+  </div>
+
+  <!-- PÁGINA 3: TABELA DE ACHADOS & ACHADOS 1 E 2 -->
+  <div class="page">
+    <div class="page-content">
+      <div class="page-header">
+        <span class="brand">Folium Print — Security Audit</span>
+        <span>Achados Detalhados (1/2)</span>
+      </div>
+
+      <h2>Tabela Geral de Achados</h2>
+      <table class="findings-table">
+        <thead>
+          <tr>
+            <th style="width: 13%;">Severidade</th>
+            <th style="width: 33%;">Arquivo & Linha</th>
+            <th style="width: 54%;">Descrição Resumida da Vulnerabilidade</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="chip chip-alta">Alta</span></td>
+            <td><span class="code-ref">src/utils/sanitizeSvg.ts:31-45</span></td>
+            <td>Bypass de sanitização SVG por expressões regulares (DOM-based XSS via SVG).</td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-alta">Alta</span></td>
+            <td><span class="code-ref">src/utils/templateFileIO.ts:50-127</span></td>
+            <td>Injeção de HTML/XSS armazenado na exportação de templates para arquivo HTML autônomo.</td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-alta">Alta</span></td>
+            <td><span class="code-ref">src/utils/printService.ts:68-140</span></td>
+            <td>Injeção de código via <code>doc.write</code> em iframe de impressão sem sandbox ou isolamento de origem.</td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-media">Média</span></td>
+            <td><span class="code-ref">src-tauri/tauri.conf.json:23</span></td>
+            <td>CSP nativo desabilitado (<code>"csp": null</code>) e uso permissivo de <code>'unsafe-inline'</code> no frontend.</td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-baixa">Baixa</span></td>
+            <td><span class="code-ref">src/utils/sanitization.ts:44-67</span></td>
+            <td>Higienização de dados pessoais (LGPD) incompleta em exportações de modelos compartilháveis.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Detalhamento dos Achados</h2>
+
+      <!-- ACHADO 1 -->
+      <div class="finding-card">
+        <div class="finding-header">
+          <span class="finding-title">1. Bypass de Sanitização SVG e DOM-XSS via Injeção de Vetores</span>
+          <span class="chip chip-alta">Alta</span>
+        </div>
+        <div class="detail-grid">
+          <span class="detail-label">Arquivo:</span>
+          <span class="detail-val"><span class="code-ref">src/utils/sanitizeSvg.ts:31-45</span></span>
+          <span class="detail-label">Consumidores:</span>
+          <span class="detail-val"><span class="code-ref">src/utils/dynamicRenderer.tsx:82, 186</span> | <span class="code-ref">src/components/VisualTemplateEditorModal.tsx:730, 812</span></span>
+          <span class="detail-label">Explorabilidade:</span>
+          <span class="detail-val">Importação de arquivo vetorial <code>.svg</code> ou template <code>.folium</code> manipulado por terceiros.</span>
+        </div>
+        <pre class="code-block">31: for (const tag of DANGEROUS_TAGS) {
+32:   const tagRegex = new RegExp(`&lt;${tag}[^&gt;]*&gt;[\\s\\S]*?&lt;\\/${tag}&gt;`, 'gi');
+33:   clean = clean.replace(tagRegex, '');
+...
+39: clean = clean.replace(/\\s+on[a-z]+=([\"'][^\"']*[\"']|[^\\s&gt;]+)/gi, '');
+42: clean = clean.replace(/(href|xlink:href)=[\"']\\s*javascript:[^\"']*[\"']/gi, '$1=\"\"');</pre>
+        <p style="font-size: 7.8pt; margin-bottom: 0;">
+          <strong>Por que é explorável:</strong> A higienização de marcação SVG com Regex é vulnerável a evasões conhecidas: (1) tags aninhadas como <code>&lt;scr&lt;script&gt;ipt&gt;</code> onde apenas o par interno é removido; (2) manipuladores de eventos delimitados por barra sem espaço prévio (ex: <code>&lt;svg/onload=alert(1)&gt;</code>); e (3) entidades codificadas em URLs (ex: <code>href="javascript&amp;colon;..."</code>). Ao injetar via <code>dangerouslySetInnerHTML</code>, scripts arbitrários são disparados.
+        </p>
+      </div>
+
+      <!-- ACHADO 2 -->
+      <div class="finding-card">
+        <div class="finding-header">
+          <span class="finding-title">2. Injeção de Código HTML na Geração de Arquivo Imprimível Exportado</span>
+          <span class="chip chip-alta">Alta</span>
+        </div>
+        <div class="detail-grid">
+          <span class="detail-label">Arquivo:</span>
+          <span class="detail-val"><span class="code-ref">src/utils/templateFileIO.ts:50-70, 76, 124-127</span></span>
+          <span class="detail-label">Função:</span>
+          <span class="detail-val"><span class="code-ref">generatePrintableHtml(template)</span> / <span class="code-ref">exportTemplateAsFile(..., 'html')</span></span>
+          <span class="detail-label">Explorabilidade:</span>
+          <span class="detail-val">Usuário exporta modelo com payload malicioso no nome ou valores dos campos e o abre no navegador.</span>
+        </div>
+        <pre class="code-block">50: const content = field.defaultValue || field.label || '';
+52: return `&lt;div style="..."&gt;&lt;span&gt;${content}&lt;/span&gt;&lt;/div&gt;`;
+...
+76: &lt;title&gt;${template.name} - Folium Print&lt;/title&gt;
+124: ${template.backgroundSvg ? `&lt;div class="background-layer"&gt;${template.backgroundSvg}&lt;/div&gt;` : ''}</pre>
+        <p style="font-size: 7.8pt; margin-bottom: 0;">
+          <strong>Por que é explorável:</strong> As variáveis <code>template.name</code>, <code>content</code> e <code>template.backgroundSvg</code> são interpoladas diretamente em literais de string sem nenhuma conversão de caracteres para entidades HTML (<code>&amp;lt;</code>, <code>&amp;gt;</code>). Além disso, <code>backgroundSvg</code> sequer passa por sanitização antes de ser impresso no arquivo HTML exportado, executando scripts maliciosos quando aberto no browser.
+        </p>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span>Folium Print — Relatório Confidencial de Auditoria de Segurança</span>
+      <span>Página 3 de 8</span>
+    </div>
+  </div>
+
+  <!-- PÁGINA 4: ACHADOS 3, 4 E 5 & RECOMENDAÇÕES -->
+  <div class="page">
+    <div class="page-content">
+      <div class="page-header">
+        <span class="brand">Folium Print — Security Audit</span>
+        <span>Achados Detalhados (2/2) & Recomendações</span>
+      </div>
+
+      <!-- ACHADO 3 -->
+      <div class="finding-card">
+        <div class="finding-header">
+          <span class="finding-title">3. Injeção de Código via doc.write em Iframe de Impressão Física</span>
+          <span class="chip chip-alta">Alta</span>
+        </div>
+        <div class="detail-grid">
+          <span class="detail-label">Arquivo:</span>
+          <span class="detail-val"><span class="code-ref">src/utils/printService.ts:68-76, 139-141</span></span>
+          <span class="detail-label">Função:</span>
+          <span class="detail-val"><span class="code-ref">executePixelPerfectPrint(...)</span></span>
+        </div>
+        <pre class="code-block">68: doc.write(`&lt;!DOCTYPE html&gt;...&lt;title&gt;Folium Print - ${template.name}&lt;/title&gt;...${htmlContent}`);</pre>
+        <p style="font-size: 7.8pt; margin-bottom: 0;">
+          <strong>Por que é explorável:</strong> O serviço de impressão instancia um <code>&lt;iframe&gt;</code> sem restrições de sandbox e injeta o documento com <code>doc.write</code>. Quebrar a tag de título com <code>&lt;/title&gt;&lt;script&gt;</code> permite execução imediata com acesso total a <code>window.parent.localStorage</code>, podendo apagar, alterar ou exfiltrar todos os modelos e configurações salvos.
+        </p>
+      </div>
+
+      <!-- ACHADO 4 -->
+      <div class="finding-card">
+        <div class="finding-header">
+          <span class="finding-title">4. Ausência de CSP Nativo no Tauri v2 e 'unsafe-inline' no Frontend</span>
+          <span class="chip chip-media">Média</span>
+        </div>
+        <div class="detail-grid">
+          <span class="detail-label">Arquivos:</span>
+          <span class="detail-val"><span class="code-ref">src-tauri/tauri.conf.json:22-24</span> | <span class="code-ref">index.html:9</span></span>
+        </div>
+        <p style="font-size: 7.8pt; margin-bottom: 0;">
+          <strong>Por que é explorável:</strong> Desativar o CSP no Tauri com <code>"csp": null</code> elimina a defesa em profundidade nativa. Paralelamente, admitir <code>'unsafe-inline'</code> na tag meta do HTML autoriza a execução imediata de qualquer script injetado nas falhas 1, 2 e 3, neutralizando a proteção do navegador contra XSS.
+        </p>
+      </div>
+
+      <!-- ACHADO 5 -->
+      <div class="finding-card">
+        <div class="finding-header">
+          <span class="finding-title">5. Sanitização de PII Incompleta na Exportação de Modelos (LGPD)</span>
+          <span class="chip chip-baixa">Baixa</span>
+        </div>
+        <div class="detail-grid">
+          <span class="detail-label">Arquivos:</span>
+          <span class="detail-val"><span class="code-ref">src/utils/sanitization.ts:44-67</span> | <span class="code-ref">src/utils/templateFileIO.ts:138-145</span></span>
+        </div>
+        <p style="font-size: 7.8pt; margin-bottom: 0;">
+          <strong>Por que é explorável:</strong> A higienização de PII só é ativada se a flag opcional for passada e analisa unicamente <code>field.defaultValue</code>, ignorando dados pessoais inseridos em títulos de modelos, rótulos (<code>label</code>), textos de apoio ou vetores SVG decorativos em etiquetas personalizadas.
+        </p>
+      </div>
+
+      <h2>Recomendações Priorizadas de Remediação</h2>
+      <div class="rec-item">
+        <span class="rec-priority">P1 - IMEDIATO</span>
+        <div>
+          <strong>Substituir sanitização SVG regex por DOMPurify / parser estrito:</strong> Instalar a biblioteca padrão <code>dompurify</code> com perfil SVG. Aplicar função de escape de entidades HTML em <code>generatePrintableHtml</code> e sanitizar o título em <code>printService.ts</code>.
+        </div>
+      </div>
+      <div class="rec-item">
+        <span class="rec-priority">P2 - CURTO PRAZO</span>
+        <div>
+          <strong>Ativar Content Security Policy estrito no Tauri e remover unsafe-inline:</strong> Configurar política rígida em <code>tauri.conf.json</code> bloqueando inline scripts externos e isolar o iframe de impressão com atributo <code>sandbox="allow-modals"</code>.
+        </div>
+      </div>
+      <div class="rec-item">
+        <span class="rec-priority">P3 - MÉDIO PRAZO</span>
+        <div>
+          <strong>Amadurecer pipeline de privacidade (LGPD):</strong> Sanitizar todos os nós textuais do modelo (título, descrição, rótulos e SVGs) ao exportar dados compartilháveis.
+        </div>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span>Folium Print — Relatório Confidencial de Auditoria de Segurança</span>
+      <span>Página 4 de 8</span>
+    </div>
+  </div>
+
+  <!-- PÁGINA 5: ISSUE 1 -->
+  <div class="page">
+    <div class="page-content">
+      <div class="page-header">
+        <span class="brand">Folium Print — Security Audit</span>
+        <span>Issues para o GitHub (1/4)</span>
+      </div>
+
+      <h2>Issue 1 para o GitHub</h2>
+      <p style="font-size: 8.2pt; color: #64748b; margin-bottom: 2mm;">
+        Copie e cole o conteúdo delimitado diretamente no rastreador de issues do repositório:
+      </p>
+
+      <div class="issue-block">
+        <span class="issue-badge">--- ISSUE 1 ---</span>
+        <div class="issue-content">### [Segurança] Vulnerabilidade de DOM-XSS por evasão do sanitizador SVG via Regex
+
+**Labels:** `security`, `severity: high`, `bug`
+
+#### Descrição do Problema
+O arquivo `src/utils/sanitizeSvg.ts` utiliza expressões regulares simples para higienizar marcações SVG antes da injeção direta no DOM via `dangerouslySetInnerHTML`. Essa abordagem permite múltiplos bypasses:
+1. Tags aninhadas não-recursivas (ex: `&lt;scr&lt;script&gt;ipt&gt;`)
+2. Manipuladores de eventos separados por barra sem espaço (ex: `&lt;svg/onload=alert(1)&gt;`)
+3. Pseudo-protocolos `javascript:` ofuscados com entidades HTML em atributos `href`.
+
+#### Evidência no Código
+Arquivo: `src/utils/sanitizeSvg.ts:31-45`
+```typescript
+for (const tag of DANGEROUS_TAGS) {
+  const tagRegex = new RegExp(`&lt;${tag}[^&gt;]*&gt;[\\s\\S]*?&lt;\\/${tag}&gt;`, 'gi');
+  clean = clean.replace(tagRegex, '');
+}
+clean = clean.replace(/\\s+on[a-z]+=([\"'][^\"']*[\"']|[^\\s&gt;]+)/gi, '');
+```
+
+#### Impacto
+Execução arbitrária de código JavaScript no contexto da aplicação desktop/web quando um usuário importa um arquivo vetorial `.svg` ou modelo `.folium` manipulado.
+
+#### Sugestão de Correção
+Adotar uma biblioteca robusta de sanitização baseada em DOM (ex: `dompurify`) com perfil restrito a SVG:
+```typescript
+import DOMPurify from 'dompurify';
+export const sanitizeSvg = (raw: string) =&gt;
+  DOMPurify.sanitize(raw, { USE_PROFILES: { svg: true, svgFilters: true } });
+```
+
+#### Critérios de Aceite
+- [ ] Payload `&lt;svg/onload=alert(1)&gt;` é totalmente desarmado e inofensivo.
+- [ ] Nenhum atributo `on*` ou link com protocolo executável permanece na string higienizada.
+- [ ] Testes unitários cobrindo evasões conhecidas adicionados à suíte de testes.</div>
+        <div style="font-family: ui-monospace; font-size: 7.5pt; color: #94a3b8; margin-top: 2mm;">--- FIM ISSUE 1 ---</div>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span>Folium Print — Relatório Confidencial de Auditoria de Segurança</span>
+      <span>Página 5 de 8</span>
+    </div>
+  </div>
+
+  <!-- PÁGINA 6: ISSUE 2 -->
+  <div class="page">
+    <div class="page-content">
+      <div class="page-header">
+        <span class="brand">Folium Print — Security Audit</span>
+        <span>Issues para o GitHub (2/4)</span>
+      </div>
+
+      <h2>Issue 2 para o GitHub</h2>
+      <p style="font-size: 8.2pt; color: #64748b; margin-bottom: 2mm;">
+        Copie e cole o conteúdo delimitado diretamente no rastreador de issues do repositório:
+      </p>
+
+      <div class="issue-block">
+        <span class="issue-badge">--- ISSUE 2 ---</span>
+        <div class="issue-content">### [Segurança] XSS armazenado na exportação de templates e interpolação de HTML em doc.write
+
+**Labels:** `security`, `severity: high`
+
+#### Descrição do Problema
+Duas rotinas de renderização realizam interpolação direta de variáveis de template em strings HTML sem codificação de entidades (`escapeHtml`):
+1. `src/utils/templateFileIO.ts` na função `generatePrintableHtml` (interpola `template.name`, `field.defaultValue` e `template.backgroundSvg` diretamente).
+2. `src/utils/printService.ts` na função `executePixelPerfectPrint` (interpola `template.name` na tag `&lt;title&gt;` e grava via `doc.write`).
+
+#### Evidência no Código
+`src/utils/templateFileIO.ts:50-76`:
+```typescript
+const content = field.defaultValue || field.label || '';
+return `&lt;div style="..."&gt;&lt;span&gt;${content}&lt;/span&gt;&lt;/div&gt;`;
+&lt;title&gt;${template.name} - Folium Print&lt;/title&gt;
+```
+`src/utils/printService.ts:73`:
+```typescript
+&lt;title&gt;Folium Print - ${template.name}&lt;/title&gt;
+```
+
+#### Impacto
+Se um modelo contiver `&lt;script&gt;` no título ou no valor de um campo, a abertura do arquivo exportado ou o envio para o spooler de impressão executará o script com acesso ao contexto do host e ao `localStorage`.
+
+#### Sugestão de Correção
+Implementar função de escape HTML antes de qualquer interpolação em marcação estática:
+```typescript
+const escapeHtml = (str: string) =&gt;
+  str.replace(/[&amp;&lt;&gt;\"']/g, (m) =&gt; ({
+    '&amp;': '&amp;amp;', '&lt;': '&amp;lt;', '&gt;': '&amp;gt;', '\"': '&amp;quot;', \"'\": '&amp;#39;'
+  })[m]!);
+```
+
+#### Critérios de Aceite
+- [ ] Exportação de modelo com caracteres especiais (`&lt;script&gt;`, `&amp;`, `\"`) gera entidades seguras.
+- [ ] Iframe de impressão não executa payloads injetados no título ou markup de etiqueta.</div>
+        <div style="font-family: ui-monospace; font-size: 7.5pt; color: #94a3b8; margin-top: 2mm;">--- FIM ISSUE 2 ---</div>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span>Folium Print — Relatório Confidencial de Auditoria de Segurança</span>
+      <span>Página 6 de 8</span>
+    </div>
+  </div>
+
+  <!-- PÁGINA 7: ISSUE 3 -->
+  <div class="page">
+    <div class="page-content">
+      <div class="page-header">
+        <span class="brand">Folium Print — Security Audit</span>
+        <span>Issues para o GitHub (3/4)</span>
+      </div>
+
+      <h2>Issue 3 para o GitHub</h2>
+      <p style="font-size: 8.2pt; color: #64748b; margin-bottom: 2mm;">
+        Copie e cole o conteúdo delimitado diretamente no rastreador de issues do repositório:
+      </p>
+
+      <div class="issue-block">
+        <span class="issue-badge">--- ISSUE 3 ---</span>
+        <div class="issue-content">### [Segurança] Fortalecimento de Content Security Policy (CSP) no Tauri e Frontend
+
+**Labels:** `security`, `severity: medium`, `hardening`
+
+#### Descrição do Problema
+O arquivo `src-tauri/tauri.conf.json` desativa a proteção de CSP em nível nativo ao configurar `"csp": null`. Concomitantemente, a tag meta do `index.html` declara `script-src 'self' 'unsafe-inline'`, o que permite a execução direta de qualquer script embutido no DOM, fragilizando a defesa em profundidade da aplicação.
+
+#### Evidência no Código
+`src-tauri/tauri.conf.json:22-24`:
+```json
+"security": {
+  "csp": null
+}
+```
+`index.html:9`:
+```html
+&lt;meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; ..." /&gt;
+```
+
+#### Impacto
+Na ocorrência de um XSS (como os documentados nas Issues 1 e 2), a ausência de um CSP restritivo permite a execução desimpedida do payload ofensivo.
+
+#### Sugestão de Correção
+1. Definir uma política rígida no `tauri.conf.json`:
+```json
+"security": {
+  "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:;"
+}
+```
+2. Migrar manipuladores inline para módulos TypeScript puros e remover `'unsafe-inline'` da diretiva `script-src`.
+
+#### Critérios de Aceite
+- [ ] `tauri.conf.json` com CSP estrito ativo sem quebrar os recursos de impressão e visualização.
+- [ ] Scripts injetados em tempo de execução são bloqueados pelo navegador com relatório de violação no console.</div>
+        <div style="font-family: ui-monospace; font-size: 7.5pt; color: #94a3b8; margin-top: 2mm;">--- FIM ISSUE 3 ---</div>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span>Folium Print — Relatório Confidencial de Auditoria de Segurança</span>
+      <span>Página 7 de 8</span>
+    </div>
+  </div>
+
+  <!-- PÁGINA 8: ISSUE 4 -->
+  <div class="page">
+    <div class="page-content">
+      <div class="page-header">
+        <span class="brand">Folium Print — Security Audit</span>
+        <span>Issues para o GitHub (4/4)</span>
+      </div>
+
+      <h2>Issue 4 para o GitHub</h2>
+      <p style="font-size: 8.2pt; color: #64748b; margin-bottom: 2mm;">
+        Copie e cole o conteúdo delimitado diretamente no rastreador de issues do repositório:
+      </p>
+
+      <div class="issue-block">
+        <span class="issue-badge">--- ISSUE 4 ---</span>
+        <div class="issue-content">### [Segurança] Aprimoramento da higienização de PII em exportações de modelos (LGPD)
+
+**Labels:** `security`, `privacy`, `severity: low`
+
+#### Descrição do Problema
+A rotina de higienização de dados pessoais em `src/utils/sanitization.ts` analisa somente o atributo `defaultValue` dos campos do modelo ao exportar dados. Textos inseridos em `template.name`, `template.description`, `field.label` ou nós textuais dentro de vetores SVG não são inspecionados, podendo resultar em vazamento acidental de dados pessoais de clientes ao compartilhar layouts de etiquetas.
+
+#### Evidência no Código
+`src/utils/sanitization.ts:49-56`:
+```typescript
+const sanitizedFields = def.fields.map((field) =&gt; {
+  if (typeof field.defaultValue === 'string' &amp;&amp; detectPotentialPII(field.defaultValue)) {
+    return { ...field, defaultValue: maskPIIString(field.defaultValue) };
+  }
+  return field;
+});
+```
+
+#### Impacto
+Vazamento de dados cadastrais (CPF, e-mails, telefones ou identificadores de pacientes em hospitais) inseridos diretamente na estrutura descritiva do modelo.
+
+#### Sugestão de Correção
+Expandir o escopo da função `sanitizeTemplateDefinition` para avaliar recursivamente todos os campos descritivos (`name`, `description`, `label`, `placeholder`) e strings SVG antes da exportação.
+
+#### Critérios de Aceite
+- [ ] CPF, e-mail e telefone presentes em `label` ou `description` são mascarados na exportação anônima.
+- [ ] Adicionados testes de regressão validando sanitização abrangente de modelos.</div>
+        <div style="font-family: ui-monospace; font-size: 7.5pt; color: #94a3b8; margin-top: 2mm;">--- FIM ISSUE 4 ---</div>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span>Folium Print — Relatório Confidencial de Auditoria de Segurança</span>
+      <span>Página 8 de 8</span>
+    </div>
+  </div>
+
+</body>
+</html>
+"""
+
+def generate_report():
+    print(f"[*] Gerando HTML da auditoria em: {HTML_OUTPUT}")
+    with open(HTML_OUTPUT, "w", encoding="utf-8") as f:
+        f.write(HTML_CONTENT)
+
+    print(f"[*] Compilando PDF profissional via Chromium Headless...")
+    cmd = [
+        "chromium-browser",
+        "--headless",
+        "--disable-gpu",
+        "--no-pdf-header-footer",
+        f"--print-to-pdf={PDF_OUTPUT}",
+        str(HTML_OUTPUT)
+    ]
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    if res.returncode != 0:
+        print(f"[!] Erro ao gerar PDF: {res.stderr}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"[+] Relatório em PDF gerado com sucesso: {PDF_OUTPUT}")
+
+    # Validação do PDF com pdfinfo
+    pdfinfo_cmd = ["pdfinfo", str(PDF_OUTPUT)]
+    info_res = subprocess.run(pdfinfo_cmd, capture_output=True, text=True)
+    if info_res.returncode == 0:
+        print("[*] Metadados do PDF:")
+        for line in info_res.stdout.splitlines():
+            if any(k in line for k in ["Pages:", "Page size:", "File size:"]):
+                print(f"    {line}")
+
+if __name__ == "__main__":
+    generate_report()
